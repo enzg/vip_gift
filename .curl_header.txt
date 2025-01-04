@@ -1,0 +1,4 @@
+-H "accept: application/json, text/plain, */*"
+-H "accept-language: en"
+-H "content-type: application/json"
+-H "authorization: Bearer $(cat /root/beta_test/pro_gift/.token_tmp.txt)"
