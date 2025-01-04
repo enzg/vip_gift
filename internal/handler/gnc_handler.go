@@ -70,11 +70,6 @@ func (h *GncHandler) DeleteGnc(c *fiber.Ctx) error {
 	return SuccessJSON(c, "Deleted")
 }
 
-type ListRequest struct {
-	Page int64 `json:"page"`
-	Size int64 `json:"size"`
-}
-
 func (h *GncHandler) ListGnc(c *fiber.Ctx) error {
 	// 从 body 或 query 中获取 page/size
 	var req ListRequest

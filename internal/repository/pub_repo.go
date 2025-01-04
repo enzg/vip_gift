@@ -11,7 +11,7 @@ type PubRepo interface {
 	GetPubByPublicCode(publicCode string) (*types.PubEntity, error)
 	UpdatePub(ent *types.PubEntity) error
 	DeletePubByPublicCode(publicCode string) error
-
+	FindPubByNamePrefix(prefix string, pubs *[]types.PubEntity) error
 	ListPub(page, size int64) ([]types.PubEntity, int64, error) // 分页需求
 }
 
@@ -156,4 +156,11 @@ func (r *pubRepoImpl) ListPub(page, size int64) ([]types.PubEntity, int64, error
 	}
 
 	return list, total, nil
+}
+func (r *pubRepoImpl) FindPubByNamePrefix(prefix string, pubs *[]types.PubEntity) error {
+	// 例如: product_name LIKE '爱奇艺%'
+	// prefix + "%"
+	likeStr := prefix + "%"
+	return r.db.Where("product_name LIKE ?", likeStr).
+		Find(pubs).Error
 }

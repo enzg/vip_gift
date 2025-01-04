@@ -7,6 +7,15 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+type ListRequest struct {
+	Page int64 `json:"page"`
+	Size int64 `json:"size"`
+}
+type BatchCategoryRequest struct {
+	Prefix   string `json:"prefix"`
+	Category string `json:"category"`
+}
+
 // 定义统一的响应结构
 type BaseResponse struct {
 	Code    int         `json:"code"`
