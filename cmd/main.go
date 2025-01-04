@@ -25,6 +25,8 @@ func main() {
 	// 路由组： /api/product/gift
 	api := app.Group("/api/product/gift")
 	api.Use(handler.JWTMiddleware(jwtSecretKey))
+	// 路由组： /api/product/gift/shop (不需要 JWT)
+	noAuthApi := app.Group("/api/product/gift/shop")
 
 	// Gnc
 	gncRepo := repository.NewGncRepo(db)
@@ -36,7 +38,7 @@ func main() {
 	pubRepo := repository.NewPubRepo(db)
 	pubSvc := service.NewPubService(pubRepo, esClient)
 	pubHdl := handler.NewPubHandler(pubSvc)
-	pubHdl.RegisterRoutes(api)
+	pubHdl.RegisterRoutes(api, noAuthApi)
 
 	addr := ":3001"
 	fmt.Printf("Server listening on %s\n", addr)

@@ -18,7 +18,7 @@ func NewPubHandler(svc service.PubService) *PubHandler {
 	return &PubHandler{svc: svc}
 }
 
-func (h *PubHandler) RegisterRoutes(r fiber.Router) {
+func (h *PubHandler) RegisterRoutes(r fiber.Router, noAuth fiber.Router) {
 	// /api/product/gift/pub
 
 	// Existing endpoints
@@ -33,6 +33,10 @@ func (h *PubHandler) RegisterRoutes(r fiber.Router) {
 	r.Get("/public/categories", h.GetPubCategories)
 
 	r.Post("/public/batch_category", h.BatchAddCategory)
+	
+	noAuth.Get("/public/one/:publicCode", h.GetPub)
+	noAuth.Get("/public/search", h.SearchPub)
+	noAuth.Get("/public/categories", h.GetPubCategories)
 }
 
 // -------------------------------------------------------------------
