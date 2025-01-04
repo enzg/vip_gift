@@ -8,6 +8,7 @@ require (
 	github.com/gofiber/jwt/v3 v3.3.10
 	github.com/golang-jwt/jwt/v4 v4.5.1
 	github.com/jinzhu/copier v0.4.0
+	github.com/joho/godotenv v1.5.1
 	gorm.io/driver/mysql v1.5.7
 	gorm.io/gorm v1.25.12
 )

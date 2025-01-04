@@ -1,0 +1,26 @@
+{
+    "settings": {
+      "analysis": {
+        "analyzer": {
+          "ik_custom_analyzer": {
+            "type": "custom",
+            "tokenizer": "ik_max_word",
+            "filter": [ "lowercase" ]
+          }
+        }
+      }
+    },
+    "mappings": {
+      "properties": {
+        "id":         { "type": "long" },
+        "name": {
+          "type": "text",
+          "analyzer": "ik_custom_analyzer",
+          "search_analyzer": "ik_smart"
+        },
+        "categories": { "type": "keyword" },
+        "created_at": { "type": "date" },
+        "updated_at": { "type": "date" }
+      }
+    }
+  }

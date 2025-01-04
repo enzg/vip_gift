@@ -4,6 +4,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 
 	"10000hk.com/vip_gift/config"
 	"10000hk.com/vip_gift/internal/handler"
@@ -12,13 +13,18 @@ import (
 )
 
 func main() {
+	config.LoadEnv()
+	jwtSecretKey := os.Getenv("JWT_SECRET_KEY")
+	if jwtSecretKey == "" {
+		log.Fatal("jwtSecretKey environment variable is not set")
+	}
 	db := config.InitDB()
 	esClient := config.InitES()
 	app := config.SetupFiber()
 
 	// 路由组： /api/product/gift
 	api := app.Group("/api/product/gift")
-	api.Use(handler.JWTMiddleware(config.JWTSecretKey))
+	api.Use(handler.JWTMiddleware(jwtSecretKey))
 
 	// Gnc
 	gncRepo := repository.NewGncRepo(db)

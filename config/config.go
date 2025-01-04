@@ -2,7 +2,10 @@
 package config
 
 import (
+	"context"
 	"log"
+	"os"
+	"strings"
 
 	// MySQL + GORM
 	"gorm.io/driver/mysql"
@@ -10,19 +13,32 @@ import (
 
 	// Elasticsearch
 	"github.com/elastic/go-elasticsearch/v7"
+	"github.com/elastic/go-elasticsearch/v7/esapi"
+	"github.com/joho/godotenv"
 
 	// 你的项目结构，包含数据表结构与其他类型
 	"10000hk.com/vip_gift/internal/types"
-
 	// Fiber & Middleware
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 )
 
+// LoadEnv 可选：在本地开发环境自动加载 .env
+// 生产环境中可以用 docker 环境变量或其他方式
+func LoadEnv() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("No .env file found or error loading .env, using system environment variables.")
+	}
+}
+
 // InitDB 连接 MySQL 并自动迁移表
 func InitDB() *gorm.DB {
 	// TODO: 将 "#mysql_db url" 改成你的 DSN
-	dsn := "#mysql_db url"
+	dsn := os.Getenv("DB_DSN")
+	if dsn == "" {
+		log.Fatal("DB_DSN environment variable is not set")
+	}
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("failed to connect db: %v", err)
@@ -41,7 +57,10 @@ func InitDB() *gorm.DB {
 // InitTestDB 专门给测试环境使用，建库、自动迁移等
 func InitTestDB() *gorm.DB {
 	// TODO: 将 "#mysql_db url" 改成你的测试数据库 DSN
-	dsn := "#mysql_db url"
+	dsn := os.Getenv("DB_TEST_DSN")
+	if dsn == "" {
+		log.Fatal("DB_DSN environment variable is not set")
+	}
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("failed to connect test db: %v", err)
@@ -62,34 +81,6 @@ func InitTestDB() *gorm.DB {
 	return db
 }
 
-// InitES 连接到 Elasticsearch
-func InitES() *elasticsearch.Client {
-	// TODO: 将 "#es_url" 替换为实际的 ES 地址, 例如 "http://localhost:9200"
-	esURL := "#es_url"
-
-	cfg := elasticsearch.Config{
-		Addresses: []string{esURL},
-		// 如果 ES 需要用户名密码, 在此加:
-		// Username: "elastic",
-		// Password: "changeme",
-	}
-	client, err := elasticsearch.NewClient(cfg)
-	if err != nil {
-		log.Printf("failed to connect ES: %v", err)
-		return nil
-	}
-	resp, err := client.Indices.Exists([]string{"products_index"})
-	if err == nil && resp.StatusCode == 404 {
-		// create index
-	}
-
-	// 可以在此处执行一些初始化操作，比如检查索引是否存在，若无则创建
-	// （略）
-
-	log.Println("Elasticsearch client initialized!")
-	return client
-}
-
 // JWTSecretKey 需要与你的其他模块共享
 var JWTSecretKey = "#uuid_for_jwt"
 
@@ -104,4 +95,58 @@ func SetupFiber() *fiber.App {
 	// app.Use(recover.New())
 
 	return app
+}
+func InitES() *elasticsearch.Client {
+	esURL := "http://localhost:9200"
+	cfg := elasticsearch.Config{
+		Addresses: []string{esURL},
+	}
+
+	client, err := elasticsearch.NewClient(cfg)
+	if err != nil {
+		log.Printf("failed to create ES client: %v", err)
+		return nil
+	}
+
+	indexName := "vip_pub"
+	resp, err := client.Indices.Exists([]string{indexName})
+	if err != nil {
+		log.Printf("failed to check if index exists: %v", err)
+		return nil
+	}
+	defer resp.Body.Close()
+
+	// 如果索引不存在(返回404), 我们从外部 JSON 文件中读取 Mapping 并创建索引
+	if resp.StatusCode == 404 {
+		// 假设你的 JSON 文件叫做 "vip_pub_mapping.json" 并放在同级目录
+		mappingBytes, err := os.ReadFile("vip_pub_mapping.json")
+		if err != nil {
+			log.Printf("failed to read mapping file: %v", err)
+			return client // 返回空或 client 看业务需求
+		}
+
+		// 将 JSON 内容转成字符串，然后提交到 ES
+		req := esapi.IndicesCreateRequest{
+			Index: indexName,
+			Body:  strings.NewReader(string(mappingBytes)),
+		}
+
+		createResp, err := req.Do(context.Background(), client)
+		if err != nil {
+			log.Printf("failed to create index %s: %v", indexName, err)
+			return client
+		}
+		defer createResp.Body.Close()
+
+		if createResp.IsError() {
+			log.Printf("Error creating index %s, status: %s", indexName, createResp.Status())
+		} else {
+			log.Printf("Index %s created successfully!", indexName)
+		}
+	} else {
+		log.Printf("Index %s exists or check returned status: %d", indexName, resp.StatusCode)
+	}
+
+	log.Println("Elasticsearch client initialized!")
+	return client
 }
