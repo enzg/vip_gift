@@ -83,11 +83,11 @@ type PubDTO struct {
 	Desc        string   `json:"desc"`
 	Pics        []string `json:"pics"`
 
-	Categories []string `json:"categories"` // Tags / categories for ES
+	Categories []string `json:"categories,omitempty"` // Tags / categories for ES
 	Status     int64    `json:"status"`
 	OriginData string   `json:"originData"`
 
-	Compositions []PubComposeDTO `json:"compositions"`
+	Compositions []PubComposeDTO `json:"compositions,omitempty"`
 }
 
 func (dto *PubDTO) FromEntity(ent *PubEntity) error {
