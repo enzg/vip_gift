@@ -32,7 +32,7 @@ func (h *PubHandler) RegisterRoutes(r fiber.Router) {
 	r.Get("/public/search", h.SearchPub)
 	r.Get("/public/categories", h.GetPubCategories)
 
-	r.Post("/batch_category", h.BatchAddCategory)
+	r.Post("/public/batch_category", h.BatchAddCategory)
 }
 
 // -------------------------------------------------------------------
