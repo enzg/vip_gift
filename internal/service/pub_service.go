@@ -272,7 +272,7 @@ func (s *pubServiceImpl) GetAllCategories() ([]string, error) {
 
 	bodyBytes, _ := json.Marshal(query)
 	reqES := esapi.SearchRequest{
-		Index: []string{"products_index"},
+		Index: []string{"vip_pub"},
 		Body:  bytes.NewReader(bodyBytes),
 	}
 	resp, err := reqES.Do(context.Background(), s.es.Transport)
@@ -318,7 +318,7 @@ func (s *pubServiceImpl) indexToES(ent *types.PubEntity) error {
 	bodyBytes, _ := json.Marshal(doc)
 
 	reqES := esapi.IndexRequest{
-		Index:      "products_index", // 你的索引名
+		Index:      "vip_pub", // 你的索引名
 		DocumentID: ent.PublicCode,
 		Body:       bytes.NewReader(bodyBytes),
 		Refresh:    "true", // dev环境可用, 生产可去掉
@@ -337,7 +337,7 @@ func (s *pubServiceImpl) indexToES(ent *types.PubEntity) error {
 
 func (s *pubServiceImpl) deleteFromES(ent *types.PubEntity) error {
 	reqES := esapi.DeleteRequest{
-		Index:      "products_index",
+		Index:      "vip_pub",
 		DocumentID: ent.PublicCode,
 		Refresh:    "true",
 	}
