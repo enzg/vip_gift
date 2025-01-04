@@ -126,14 +126,14 @@ func (h *PubHandler) SearchPub(c *fiber.Ctx) error {
 	page, _ := strconv.ParseInt(pageQ, 10, 64)
 	size, _ := strconv.ParseInt(sizeQ, 10, 64)
 
-	results, err := h.svc.SearchByKeyword(keyword, page, size)
+	results,total, err := h.svc.SearchByKeyword(keyword, page, size)
 	if err != nil {
 		return ErrorJSON(c, 500, err.Error())
 	}
 	return SuccessJSON(c, fiber.Map{
 		"keyword": keyword,
-		"count":   len(results),
-		"data":    results,
+		"total":   total,
+		"dataList":    results,
 	})
 }
 
@@ -147,8 +147,8 @@ func (h *PubHandler) GetPubCategories(c *fiber.Ctx) error {
 		return ErrorJSON(c, 500, err.Error())
 	}
 	return SuccessJSON(c, fiber.Map{
-		"categories": cats,
-		"count":      len(cats),
+		"dataList": cats,
+		"total":      len(cats),
 	})
 }
 
