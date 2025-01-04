@@ -28,7 +28,7 @@ type PubService interface {
 	List(page, size int64) ([]types.PubDTO, int64, error)
 
 	// ----- Newly Added Methods -----
-	SearchByKeyword(keyword string, page, size int64) ([]types.PubDTO, int64,error)
+	SearchByKeyword(keyword string, page, size int64) ([]types.PubDTO, int64, error)
 	GetAllCategories() ([]string, error)
 	BatchAddCategoryForPrefix(string, string) error
 }
@@ -250,91 +250,81 @@ func (s *pubServiceImpl) List(page, size int64) ([]types.PubDTO, int64, error) {
 // 		results = append(results, dto)
 // 	}
 
-// 	return results, nil
-// }
+//		return results, nil
+//	}
 func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]types.PubDTO, int64, error) {
-    // 1) Build a match query on "name" field
-    from := (page - 1) * size
-    query := map[string]interface{}{
-        "query": map[string]interface{}{
-            "match": map[string]interface{}{
-                "name": keyword,
-            },
-        },
-        "from": from,
-        "size": size,
-        // You can also add "sort" here, e.g. [{"_score":{"order":"desc"}}]
-    }
+	// 1) Build a match query on "name" field
+	from := (page - 1) * size
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"match": map[string]interface{}{
+				"name": keyword,
+			},
+		},
+		"from": from,
+		"size": size,
+		// You can also add "sort" here, e.g. [{"_score":{"order":"desc"}}]
+	}
 
-    bodyBytes, _ := json.Marshal(query)
-    reqES := esapi.SearchRequest{
-        Index: []string{"vip_pub"}, // your ES index
-        Body:  bytes.NewReader(bodyBytes),
-    }
-    resp, err := reqES.Do(context.Background(), s.es.Transport)
-    if err != nil {
-        return nil, 0, fmt.Errorf("ES search error: %v", err)
-    }
-    defer resp.Body.Close()
+	bodyBytes, _ := json.Marshal(query)
+	reqES := esapi.SearchRequest{
+		Index: []string{"vip_pub"}, // your ES index
+		Body:  bytes.NewReader(bodyBytes),
+	}
+	resp, err := reqES.Do(context.Background(), s.es.Transport)
+	if err != nil {
+		return nil, 0, fmt.Errorf("ES search error: %v", err)
+	}
+	defer resp.Body.Close()
 
-    if resp.IsError() {
-        return nil, 0, fmt.Errorf("ES search status: %s", resp.Status())
-    }
+	if resp.IsError() {
+		return nil, 0, fmt.Errorf("ES search status: %s", resp.Status())
+	}
 
-    // 2) Parse the JSON response
-    var sr map[string]interface{}
-    if err := json.NewDecoder(resp.Body).Decode(&sr); err != nil {
-        return nil, 0, err
-    }
+	// 2) Parse the JSON response
+	var sr map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&sr); err != nil {
+		return nil, 0, err
+	}
 
-    // 3) Extract total hits
-    var totalHits int64
-    if hitsVal, ok := sr["hits"].(map[string]interface{}); ok {
-        if totalObj, ok2 := hitsVal["total"].(map[string]interface{}); ok2 {
-            if val, ok3 := totalObj["value"].(float64); ok3 {
-                totalHits = int64(val)
-            }
-        }
-    }
+	// 3) Extract total hits
+	var totalHits int64
+	if hitsVal, ok := sr["hits"].(map[string]interface{}); ok {
+		if totalObj, ok2 := hitsVal["total"].(map[string]interface{}); ok2 {
+			if val, ok3 := totalObj["value"].(float64); ok3 {
+				totalHits = int64(val)
+			}
+		}
+	}
 
-    // 4) Extract the actual documents
-    hits, _ := sr["hits"].(map[string]interface{})["hits"].([]interface{})
-    var results []types.PubDTO
-    for _, h := range hits {
-        doc := h.(map[string]interface{})
-        source := doc["_source"].(map[string]interface{})
+	// 4) Extract the actual documents
+	hits, _ := sr["hits"].(map[string]interface{})["hits"].([]interface{})
+	var results []types.PubDTO
+	for _, h := range hits {
+		doc := h.(map[string]interface{})
+		source := doc["_source"].(map[string]interface{})
 
-        dto := types.PubDTO{
-            PublicCode:  stringValue(source["id"]),
-            ProductName: stringValue(source["name"]),
-        }
+		dto := types.PubDTO{
+			PublicCode:  stringValue(source["id"]),
+			ProductName: stringValue(source["name"]),
+		}
 
-        if cArr, ok := source["categories"].([]interface{}); ok {
-            cats := make([]string, 0, len(cArr))
-            for _, cVal := range cArr {
-                if sVal, ok := cVal.(string); ok {
-                    cats = append(cats, sVal)
-                }
-            }
-            dto.Categories = cats
-        }
+		if cArr, ok := source["categories"].([]interface{}); ok {
+			cats := make([]string, 0, len(cArr))
+			for _, cVal := range cArr {
+				if sVal, ok := cVal.(string); ok {
+					cats = append(cats, sVal)
+				}
+			}
+			dto.Categories = cats
+		}
 
-        results = append(results, dto)
-    }
+		results = append(results, dto)
+	}
 
-    return results, totalHits, nil
+	return results, totalHits, nil
 }
 
-// stringValue is a small helper to safely convert interface{} to string
-func stringValue(v interface{}) string {
-    if v == nil {
-        return ""
-    }
-    if s, ok := v.(string); ok {
-        return s
-    }
-    return fmt.Sprintf("%v", v)
-}
 // -------------------------------------------------------------------
 // 7) Get distinct categories via ES Aggregation (NEW)
 // -------------------------------------------------------------------
