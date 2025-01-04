@@ -3,6 +3,8 @@ package handler
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"strconv"
 
 	"10000hk.com/vip_gift/internal/service"
@@ -23,8 +25,11 @@ func (h *PubHandler) RegisterRoutes(r fiber.Router) {
 	r.Get("/shop/one/:publicCode", h.GetPub)
 	r.Get("/shop/search", h.SearchPub)
 	r.Get("/shop/categories", h.GetPubCategories)
-	
-	r.Use(handler.JWTMiddleware(jwtSecretKey))
+	jwtSecretKey := os.Getenv("JWT_SECRET_KEY")
+	if jwtSecretKey == "" {
+		log.Fatal("jwtSecretKey environment variable is not set")
+	}
+	r.Use(JWTMiddleware(jwtSecretKey))
 	// Existing endpoints
 	r.Post("/public", h.CreatePub)
 	r.Get("/public/one/:publicCode", h.GetPub)
@@ -37,7 +42,7 @@ func (h *PubHandler) RegisterRoutes(r fiber.Router) {
 	r.Get("/public/categories", h.GetPubCategories)
 
 	r.Post("/public/batch_category", h.BatchAddCategory)
-	
+
 }
 
 // -------------------------------------------------------------------
@@ -131,14 +136,14 @@ func (h *PubHandler) SearchPub(c *fiber.Ctx) error {
 	page, _ := strconv.ParseInt(pageQ, 10, 64)
 	size, _ := strconv.ParseInt(sizeQ, 10, 64)
 
-	results,total, err := h.svc.SearchByKeyword(keyword, page, size)
+	results, total, err := h.svc.SearchByKeyword(keyword, page, size)
 	if err != nil {
 		return ErrorJSON(c, 500, err.Error())
 	}
 	return SuccessJSON(c, fiber.Map{
-		"keyword": keyword,
-		"total":   total,
-		"dataList":    results,
+		"keyword":  keyword,
+		"total":    total,
+		"dataList": results,
 	})
 }
 
@@ -153,7 +158,7 @@ func (h *PubHandler) GetPubCategories(c *fiber.Ctx) error {
 	}
 	return SuccessJSON(c, fiber.Map{
 		"dataList": cats,
-		"total":      len(cats),
+		"total":    len(cats),
 	})
 }
 

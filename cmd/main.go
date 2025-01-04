@@ -4,7 +4,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
 
 	"10000hk.com/vip_gift/config"
 	"10000hk.com/vip_gift/internal/handler"
@@ -14,10 +13,7 @@ import (
 
 func main() {
 	config.LoadEnv()
-	jwtSecretKey := os.Getenv("JWT_SECRET_KEY")
-	if jwtSecretKey == "" {
-		log.Fatal("jwtSecretKey environment variable is not set")
-	}
+
 	db := config.InitDB()
 	esClient := config.InitES()
 	app := config.SetupFiber()
@@ -32,7 +28,7 @@ func main() {
 	pubSvc := service.NewPubService(pubRepo, esClient)
 	pubHdl := handler.NewPubHandler(pubSvc)
 	pubHdl.RegisterRoutes(api)
-	
+
 	// Gnc
 	gncRepo := repository.NewGncRepo(db)
 	gncSvc := service.NewGncService(gncRepo)
