@@ -307,6 +307,8 @@ func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]ty
 		dto := types.PubDTO{
 			PublicCode:  stringValue(source["id"]),
 			ProductName: stringValue(source["name"]),
+			SalePrice:   source["salePrice"].(float64),
+			ParValue:    source["parValue"].(float64),
 		}
 
 		if cArr, ok := source["categories"].([]interface{}); ok {
@@ -384,6 +386,8 @@ func (s *pubServiceImpl) indexToES(ent *types.PubEntity) error {
 		"id":         ent.PublicCode, // _id
 		"name":       ent.ProductName,
 		"categories": ent.Categories, // 需要在 PubEntity 中有
+		"salePrice": ent.SalePrice,
+		"parValue":  ent.ParValue,
 		"created_at": time.Now().Format(time.RFC3339),
 		"updated_at": time.Now().Format(time.RFC3339),
 	}
