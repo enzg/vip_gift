@@ -1,5 +1,13 @@
 // internal/types/interface.go
 package types
+// GiftSearchable focuses on ES indexing fields
+type GiftSearchable interface {
+    GetESID() string          // ES doc ID
+    GetESName() string        // name for searching
+    GetESCategories() []string
+    // optionally: GetESDescription(), etc.
+}
+
 
 // GiftBase 接口，描述最基础的权益品信息
 type GiftBase interface {

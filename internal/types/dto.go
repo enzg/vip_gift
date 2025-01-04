@@ -6,7 +6,7 @@ import (
 )
 
 // ------------------
-// 1. GncDTO (基础权益品的对外数据)
+// 1. GncDTO
 // ------------------
 type GncDTO struct {
 	ID           uint64   `json:"id"`
@@ -26,20 +26,25 @@ type GncDTO struct {
 	OriginData string `json:"originData"`
 }
 
+// FromEntity uses helper to unify the logic
 func (dto *GncDTO) FromEntity(ent *GncEntity) error {
-	return copier.Copy(dto, ent)
-}
-func (dto *GncDTO) ToEntity() (*GncEntity, error) {
-	var ent GncEntity
-	err := copier.Copy(&ent, dto)
-	if err != nil {
-		return nil, err
+	if ent == nil {
+		return nil
 	}
-	return &ent, nil
+	newDTO, err := copyGncEntityToDTO(ent)
+	if err != nil {
+		return err
+	}
+	*dto = *newDTO
+	return nil
+}
+
+func (dto *GncDTO) ToEntity() (*GncEntity, error) {
+	return copyGncDTOToEntity(dto)
 }
 
 // ------------------
-// 2. PubComposeDTO (组合项的对外数据)
+// 2. PubComposeDTO
 // ------------------
 type PubComposeDTO struct {
 	ID           uint64 `json:"id"`
@@ -49,61 +54,137 @@ type PubComposeDTO struct {
 	Snapshot     string `json:"snapshot"`
 }
 
+// FromEntity uses helper
 func (dto *PubComposeDTO) FromEntity(ent *PubComposeEntity) error {
-	return copier.Copy(dto, ent)
-}
-func (dto *PubComposeDTO) ToEntity() (*PubComposeEntity, error) {
-	var ent PubComposeEntity
-	err := copier.Copy(&ent, dto)
-	if err != nil {
-		return nil, err
+	if ent == nil {
+		return nil
 	}
-	return &ent, nil
-}
-
-// ------------------
-// 3. PubDTO (在售权益品的对外数据)
-// ------------------
-type PubDTO struct {
-	ID           uint64          `json:"id"`
-	PublicCode   string          `json:"publicCode"`
-	Compositions []PubComposeDTO `json:"compositions"`
-	ParValue     float64         `json:"parValue"`
-	SalePrice    float64         `json:"salePrice"`
-	Cover        string          `json:"cover"`
-	Desc         string          `json:"desc"`
-	Pics         []string        `json:"pics"`
-	OriginData   string          `json:"originData"`
-	Status       int64           `json:"status"`
-	ProductName  string          `json:"productName"`
-}
-
-// FromEntity -> Dto
-func (dto *PubDTO) FromEntity(ent *PubEntity) error {
-	if err := copier.Copy(dto, ent); err != nil {
+	newDTO, err := copyPubComposeEntityToDTO(ent)
+	if err != nil {
 		return err
 	}
-
-	// 组合项
-	dto.Compositions = make([]PubComposeDTO, len(ent.Compositions))
-	for i, cEnt := range ent.Compositions {
-		_ = copier.Copy(&dto.Compositions[i], &cEnt)
-	}
-
+	*dto = *newDTO
 	return nil
 }
 
-// ToEntity -> Entity
+func (dto *PubComposeDTO) ToEntity() (*PubComposeEntity, error) {
+	return copyPubComposeDTOToEntity(dto)
+}
+
+// ------------------
+// 3. PubDTO
+// ------------------
+type PubDTO struct {
+	PublicCode  string   `json:"publicCode"`
+	ProductName string   `json:"productName"`
+	SalePrice   float64  `json:"salePrice"`
+	ParValue    float64  `json:"parValue"`
+	Cover       string   `json:"cover"`
+	Desc        string   `json:"desc"`
+	Pics        []string `json:"pics"`
+
+	Categories []string `json:"categories"` // Tags / categories for ES
+	Status     int64    `json:"status"`
+	OriginData string   `json:"originData"`
+
+	Compositions []PubComposeDTO `json:"compositions"`
+}
+
+func (dto *PubDTO) FromEntity(ent *PubEntity) error {
+	if ent == nil {
+		return nil
+	}
+	newDTO, err := copyPubEntityToDTO(ent)
+	if err != nil {
+		return err
+	}
+	*dto = *newDTO
+	return nil
+}
+
 func (dto *PubDTO) ToEntity() (*PubEntity, error) {
-	var ent PubEntity
-	if err := copier.Copy(&ent, dto); err != nil {
+	return copyPubDTOToEntity(dto)
+}
+
+// =====================================================================
+// HELPER FUNCTIONS (Private) - One place to unify the logic
+// =====================================================================
+
+// ---------- GNC HELPER ----------
+func copyGncEntityToDTO(ent *GncEntity) (*GncDTO, error) {
+	dto := &GncDTO{}
+	if err := copier.Copy(dto, ent); err != nil {
 		return nil, err
 	}
+	// If you have special logic for productPics, etc, do it here
+	// e.g. if ent.ProductPicsJSON -> unmarshal -> dto.ProductPics
+	return dto, nil
+}
 
-	ent.Compositions = make([]PubComposeEntity, len(dto.Compositions))
-	for i, cDto := range dto.Compositions {
-		_ = copier.Copy(&ent.Compositions[i], &cDto)
+func copyGncDTOToEntity(dto *GncDTO) (*GncEntity, error) {
+	ent := &GncEntity{}
+	if err := copier.Copy(ent, dto); err != nil {
+		return nil, err
 	}
+	// If you have special logic for pics or others, do it here
+	return ent, nil
+}
 
-	return &ent, nil
+// ---------- PubCompose HELPER ----------
+func copyPubComposeEntityToDTO(ent *PubComposeEntity) (*PubComposeDTO, error) {
+	dto := &PubComposeDTO{}
+	if err := copier.Copy(dto, ent); err != nil {
+		return nil, err
+	}
+	return dto, nil
+}
+
+func copyPubComposeDTOToEntity(dto *PubComposeDTO) (*PubComposeEntity, error) {
+	ent := &PubComposeEntity{}
+	if err := copier.Copy(ent, dto); err != nil {
+		return nil, err
+	}
+	return ent, nil
+}
+
+// ---------- Pub HELPER ----------
+func copyPubEntityToDTO(ent *PubEntity) (*PubDTO, error) {
+	dto := &PubDTO{}
+	if err := copier.Copy(dto, ent); err != nil {
+		return nil, err
+	}
+	// Now do manual copying for Compositions (nested slice)
+	if len(ent.Compositions) > 0 {
+		comps := make([]PubComposeDTO, len(ent.Compositions))
+		for i, ce := range ent.Compositions {
+			// re-use helper
+			cDto, err := copyPubComposeEntityToDTO(&ce)
+			if err != nil {
+				return nil, err
+			}
+			comps[i] = *cDto
+		}
+		dto.Compositions = comps
+	}
+	return dto, nil
+}
+
+func copyPubDTOToEntity(dto *PubDTO) (*PubEntity, error) {
+	ent := &PubEntity{}
+	if err := copier.Copy(ent, dto); err != nil {
+		return nil, err
+	}
+	// handle Compositions manually
+	if len(dto.Compositions) > 0 {
+		comps := make([]PubComposeEntity, len(dto.Compositions))
+		for i, c := range dto.Compositions {
+			cEnt, err := copyPubComposeDTOToEntity(&c)
+			if err != nil {
+				return nil, err
+			}
+			comps[i] = *cEnt
+		}
+		ent.Compositions = comps
+	}
+	return ent, nil
 }

@@ -1,34 +1,3 @@
-// // internal/handler/jwt_middleware.go
-// package handler
-
-// import (
-// 	"strings"
-
-// 	"10000hk.com/vip_gift/config"
-// 	"github.com/gofiber/fiber/v2"
-// 	"github.com/golang-jwt/jwt/v4"
-// )
-
-// func JWTAuthMiddleware(c *fiber.Ctx) error {
-// 	authHeader := c.Get("Authorization")
-// 	if authHeader == "" {
-// 		return ErrorJSON(c, 401, "missing Authorization header")
-// 	}
-// 	parts := strings.SplitN(authHeader, " ", 2)
-// 	if len(parts) != 2 || parts[0] != "Bearer" {
-// 		return ErrorJSON(c, 401, "invalid token format")
-// 	}
-// 	tokenString := parts[1]
-
-//		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-//			return config.JWTSecretKey, nil
-//		})
-//		if err != nil || !token.Valid {
-//			return ErrorJSON(c, 401, "unauthorized")
-//		}
-//		return c.Next()
-//	}
-//
 // internal/handler/jwt_middleware.go
 package handler
 

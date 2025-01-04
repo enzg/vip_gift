@@ -1,167 +1,366 @@
 // internal/service/pub_service.go
+
 package service
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"time"
 
 	"10000hk.com/vip_gift/internal/repository"
 	"10000hk.com/vip_gift/internal/types"
+
+	"github.com/elastic/go-elasticsearch/v7"
+	"github.com/elastic/go-elasticsearch/v7/esapi"
 )
 
+// PubService 定义对外的接口
 type PubService interface {
-	Create(dto *types.PubDTO) (*types.PubDTO, error)
-	GetByPublicCode(publicCode string) (*types.PubDTO, error)
-	UpdateByPublicCode(publicCode string, dto *types.PubDTO) (*types.PubDTO, error)
-	DeleteByPublicCode(publicCode string) error
+    // ----- Existing Methods -----
+    Create(dto *types.PubDTO) (*types.PubDTO, error)
+    GetByPublicCode(publicCode string) (*types.PubDTO, error)
+    UpdateByPublicCode(publicCode string, dto *types.PubDTO) (*types.PubDTO, error)
+    DeleteByPublicCode(publicCode string) error
+    List(page, size int64) ([]types.PubDTO, int64, error)
 
-	List(page, size int64) ([]types.PubDTO, int64, error)
+    // ----- Newly Added Methods -----
+    SearchByKeyword(keyword string, page, size int64) ([]types.PubDTO, error)
+    GetAllCategories() ([]string, error)
 }
 
 type pubServiceImpl struct {
-	repo repository.PubRepo
+    repo repository.PubRepo
+    es   *elasticsearch.Client
 }
 
-func NewPubService(repo repository.PubRepo) PubService {
-	return &pubServiceImpl{repo: repo}
+// NewPubService 返回默认的 pubServiceImpl 实例
+func NewPubService(repo repository.PubRepo, es *elasticsearch.Client) PubService {
+    return &pubServiceImpl{repo: repo, es: es}
 }
 
+// -------------------------------------------------------------------
+// 1) Create
+// -------------------------------------------------------------------
 func (s *pubServiceImpl) Create(dto *types.PubDTO) (*types.PubDTO, error) {
-	if dto.PublicCode == "" {
-		return nil, errors.New("publicCode is required")
-	}
-	ent, err := dto.ToEntity()
-	if err != nil {
-		return nil, err
-	}
-	// 默认上架
-	if ent.Status == 0 {
-		ent.Status = 1
-	}
-	if err := s.repo.CreatePub(ent); err != nil {
-		return nil, err
-	}
-	_ = dto.FromEntity(ent)
-	return dto, nil
+    if dto.PublicCode == "" {
+        return nil, errors.New("publicCode is required")
+    }
+    ent, err := dto.ToEntity()
+    if err != nil {
+        return nil, err
+    }
+    // 默认上架
+    if ent.Status == 0 {
+        ent.Status = 1
+    }
+
+    // 1) 写数据库
+    if err := s.repo.CreatePub(ent); err != nil {
+        return nil, err
+    }
+
+    // 2) 同步到 ES
+    if err := s.indexToES(ent); err != nil {
+        // 这里视需求决定：要不要回滚 DB？还是仅警告
+        return nil, fmt.Errorf("failed to index to ES: %w", err)
+    }
+
+    _ = dto.FromEntity(ent)
+    return dto, nil
 }
 
+// -------------------------------------------------------------------
+// 2) Get
+// -------------------------------------------------------------------
 func (s *pubServiceImpl) GetByPublicCode(publicCode string) (*types.PubDTO, error) {
-	ent, err := s.repo.GetPubByPublicCode(publicCode)
-	if err != nil {
-		return nil, err
-	}
-	var dto types.PubDTO
-	_ = dto.FromEntity(ent)
-	return &dto, nil
+    ent, err := s.repo.GetPubByPublicCode(publicCode)
+    if err != nil {
+        return nil, err
+    }
+    var dto types.PubDTO
+    _ = dto.FromEntity(ent)
+    return &dto, nil
 }
 
-// func (s *pubServiceImpl) UpdateByPublicCode(publicCode string, dto *types.PubDTO) (*types.PubDTO, error) {
-// 	oldEnt, err := s.repo.GetPubByPublicCode(publicCode)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	if dto.SalePrice != 0 {
-// 		oldEnt.SalePrice = dto.SalePrice
-// 	}
-// 	if dto.ParValue != 0 {
-// 		oldEnt.ParValue = dto.ParValue
-// 	}
-// 	if dto.Cover != "" {
-// 		oldEnt.Cover = dto.Cover
-// 	}
-// 	if dto.Desc != "" {
-// 		oldEnt.Desc = dto.Desc
-// 	}
-// 	if dto.OriginData != "" {
-// 		oldEnt.OriginData = dto.OriginData
-// 	}
-// 	if dto.Status != 0 {
-// 		oldEnt.Status = dto.Status
-// 	}
-// 	// 如果要更新 Compositions, 也可以做更复杂的处理
-
-//		if err := s.repo.UpdatePub(oldEnt); err != nil {
-//			return nil, err
-//		}
-//		var updated types.PubDTO
-//		_ = updated.FromEntity(oldEnt)
-//		return &updated, nil
-//	}
+// -------------------------------------------------------------------
+// 3) Update
+// -------------------------------------------------------------------
 func (s *pubServiceImpl) UpdateByPublicCode(publicCode string, dto *types.PubDTO) (*types.PubDTO, error) {
-	// 1) 先查旧记录
-	oldEnt, err := s.repo.GetPubByPublicCode(publicCode)
-	if err != nil {
-		return nil, err
-	}
+    // 1) 先查旧记录
+    oldEnt, err := s.repo.GetPubByPublicCode(publicCode)
+    if err != nil {
+        return nil, err
+    }
 
-	// 2) 根据 dto 中的字段来更新 oldEnt
-	if dto.SalePrice != 0 {
-		oldEnt.SalePrice = dto.SalePrice
-	}
-	if dto.ParValue != 0 {
-		// 如果你在 pub_entity 中定义了 ParValue 字段
-		oldEnt.ParValue = dto.ParValue
-	}
-	if dto.Cover != "" {
-		oldEnt.Cover = dto.Cover
-	}
-	if dto.Desc != "" {
-		oldEnt.Desc = dto.Desc
-	}
-	if dto.OriginData != "" {
-		oldEnt.OriginData = dto.OriginData
-	}
-	if dto.Status != 0 {
-		oldEnt.Status = dto.Status
-	}
+    // 2) 用 dto 覆盖旧记录字段
+    if dto.SalePrice != 0 {
+        oldEnt.SalePrice = dto.SalePrice
+    }
+    if dto.ParValue != 0 {
+        oldEnt.ParValue = dto.ParValue
+    }
+    if dto.Cover != "" {
+        oldEnt.Cover = dto.Cover
+    }
+    if dto.Desc != "" {
+        oldEnt.Desc = dto.Desc
+    }
+    if dto.OriginData != "" {
+        oldEnt.OriginData = dto.OriginData
+    }
+    if dto.Status != 0 {
+        oldEnt.Status = dto.Status
+    }
 
-	// 3) 更新 Compositions:
-	//    如果本次 API 要**完全替换**原有的组合项，可以直接把 dto.Compositions 赋给 oldEnt.Compositions
-	//    (后续 Repository 层将做“先删后增”或其他逻辑)
+    // 更新组合(Compositions)
+    if len(dto.Compositions) > 0 {
+        newComps := make([]types.PubComposeEntity, len(dto.Compositions))
+        for i, cDto := range dto.Compositions {
+            newComps[i].BaseCode = cDto.BaseCode
+            newComps[i].Strategy = cDto.Strategy
+            newComps[i].Snapshot = cDto.Snapshot
+        }
+        oldEnt.Compositions = newComps
+    } else {
+        // 这里视业务：若前端传空数组, 可能表示清空
+        oldEnt.Compositions = nil
+    }
 
-	if len(dto.Compositions) > 0 {
-		// 这里假设你在 dto.ToEntity() 里也有类似逻辑，
-		// 可以把 dto.Compositions 转成 []PubComposeEntity
-		// 或者你可以手动拷贝
+    // 3) 更新数据库
+    if err := s.repo.UpdatePub(oldEnt); err != nil {
+        return nil, err
+    }
 
-		// 示例：直接手动拷贝
-		newComps := make([]types.PubComposeEntity, len(dto.Compositions))
-		for i, cDto := range dto.Compositions {
-			newComps[i].BaseCode = cDto.BaseCode
-			newComps[i].Strategy = cDto.Strategy
-			newComps[i].Snapshot = cDto.Snapshot
-			// GiftPublicID 暂时不赋值，在 Repo 更新时再补 ent.ID
-		}
-		oldEnt.Compositions = newComps
-	} else {
-		// 若前端没带 compositions，可能意味着不更新它们
-		// 或者意味着要清空组合项？看你的业务需求决定
-		// 这里先示例：如果前端传空，就清空
-		oldEnt.Compositions = nil
-	}
+    // 4) 同步到 ES
+    if err := s.indexToES(oldEnt); err != nil {
+        return nil, fmt.Errorf("ES index error: %w", err)
+    }
 
-	// 4) 调用 Repository 更新数据库
-	if err := s.repo.UpdatePub(oldEnt); err != nil {
-		return nil, err
-	}
-
-	// 5) 返回更新后的 DTO
-	var updated types.PubDTO
-	_ = updated.FromEntity(oldEnt)
-	return &updated, nil
+    // 5) 返回更新后的 dto
+    var updated types.PubDTO
+    _ = updated.FromEntity(oldEnt)
+    return &updated, nil
 }
 
+// -------------------------------------------------------------------
+// 4) Delete
+// -------------------------------------------------------------------
 func (s *pubServiceImpl) DeleteByPublicCode(publicCode string) error {
-	return s.repo.DeletePubByPublicCode(publicCode)
+    // 1) 先查实体
+    ent, err := s.repo.GetPubByPublicCode(publicCode)
+    if err != nil {
+        return err
+    }
+
+    // 2) 删 DB
+    if err := s.repo.DeletePubByPublicCode(publicCode); err != nil {
+        return err
+    }
+
+    // 3) 删 ES
+    if err := s.deleteFromES(ent); err != nil {
+        // 看你要不要回滚 DB
+        return fmt.Errorf("failed to delete from ES: %w", err)
+    }
+    return nil
 }
 
+// -------------------------------------------------------------------
+// 5) List (reads from DB, not from ES)
+// -------------------------------------------------------------------
 func (s *pubServiceImpl) List(page, size int64) ([]types.PubDTO, int64, error) {
-	ents, total, err := s.repo.ListPub(page, size)
-	if err != nil {
-		return nil, 0, err
-	}
-	result := make([]types.PubDTO, len(ents))
-	for i, e := range ents {
-		_ = result[i].FromEntity(&e)
-	}
-	return result, total, nil
+    ents, total, err := s.repo.ListPub(page, size)
+    if err != nil {
+        return nil, 0, err
+    }
+    result := make([]types.PubDTO, len(ents))
+    for i, e := range ents {
+        _ = result[i].FromEntity(&e)
+    }
+    return result, total, nil
+}
+
+// -------------------------------------------------------------------
+// 6) Search in ES by keyword (NEW)
+// -------------------------------------------------------------------
+func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]types.PubDTO, error) {
+    // Build a match query on "name" field
+    from := (page - 1) * size
+    query := map[string]interface{}{
+        "query": map[string]interface{}{
+            "match": map[string]interface{}{
+                "name": keyword,
+            },
+        },
+        "from": from,
+        "size": size,
+        // You can also add "sort" here, e.g. [{"_score":{"order":"desc"}}]
+    }
+
+    bodyBytes, _ := json.Marshal(query)
+    reqES := esapi.SearchRequest{
+        Index: []string{"products_index"}, // your index
+        Body:  bytes.NewReader(bodyBytes),
+    }
+    resp, err := reqES.Do(context.Background(), s.es.Transport)
+    if err != nil {
+        return nil, fmt.Errorf("ES search error: %v", err)
+    }
+    defer resp.Body.Close()
+
+    if resp.IsError() {
+        return nil, fmt.Errorf("ES search status: %s", resp.Status())
+    }
+
+    // Parse response
+    var sr map[string]interface{}
+    if err := json.NewDecoder(resp.Body).Decode(&sr); err != nil {
+        return nil, err
+    }
+
+    hits := sr["hits"].(map[string]interface{})["hits"].([]interface{})
+    var results []types.PubDTO
+    for _, h := range hits {
+        doc := h.(map[string]interface{})
+        source := doc["_source"].(map[string]interface{})
+
+        // Convert source to PubDTO
+        // We'll just do it manually here, or you can unmarshal JSON
+        dto := types.PubDTO{
+            PublicCode:  stringValue(source["id"]),
+            ProductName: stringValue(source["name"]),
+        }
+
+        // If you have categories in your PubDTO as well
+        if cArr, ok := source["categories"].([]interface{}); ok {
+            cats := make([]string, 0, len(cArr))
+            for _, cVal := range cArr {
+                if sVal, ok := cVal.(string); ok {
+                    cats = append(cats, sVal)
+                }
+            }
+            dto.Categories = cats
+        }
+
+        results = append(results, dto)
+    }
+
+    return results, nil
+}
+
+// -------------------------------------------------------------------
+// 7) Get distinct categories via ES Aggregation (NEW)
+// -------------------------------------------------------------------
+func (s *pubServiceImpl) GetAllCategories() ([]string, error) {
+    // Build a terms aggregation query
+    query := map[string]interface{}{
+        "size": 0,
+        "aggs": map[string]interface{}{
+            "catAgg": map[string]interface{}{
+                "terms": map[string]interface{}{
+                    "field": "categories",
+                    "size":  10000, // adjust as needed
+                },
+            },
+        },
+    }
+
+    bodyBytes, _ := json.Marshal(query)
+    reqES := esapi.SearchRequest{
+        Index: []string{"products_index"},
+        Body:  bytes.NewReader(bodyBytes),
+    }
+    resp, err := reqES.Do(context.Background(), s.es.Transport)
+    if err != nil {
+        return nil, fmt.Errorf("ES agg error: %v", err)
+    }
+    defer resp.Body.Close()
+
+    if resp.IsError() {
+        return nil, fmt.Errorf("ES status: %s", resp.Status())
+    }
+
+    var sr map[string]interface{}
+    if err := json.NewDecoder(resp.Body).Decode(&sr); err != nil {
+        return nil, err
+    }
+
+    aggs := sr["aggregations"].(map[string]interface{})
+    catAgg := aggs["catAgg"].(map[string]interface{})
+    buckets := catAgg["buckets"].([]interface{})
+
+    var categories []string
+    for _, b := range buckets {
+        bucket := b.(map[string]interface{})
+        key := bucket["key"].(string)
+        categories = append(categories, key)
+    }
+
+    return categories, nil
+}
+
+// ========================= Elasticsearch Helper Methods =========================
+
+// indexToES 把 pubEntity 同步到 ES
+func (s *pubServiceImpl) indexToES(ent *types.PubEntity) error {
+    doc := map[string]interface{}{
+        "id":         ent.PublicCode, // _id
+        "name":       ent.ProductName,
+        "categories": ent.Categories, // 需要在 PubEntity 中有
+        "created_at": time.Now().Format(time.RFC3339),
+        "updated_at": time.Now().Format(time.RFC3339),
+    }
+    bodyBytes, _ := json.Marshal(doc)
+
+    reqES := esapi.IndexRequest{
+        Index:      "products_index", // 你的索引名
+        DocumentID: ent.PublicCode,
+        Body:       bytes.NewReader(bodyBytes),
+        Refresh:    "true", // dev环境可用, 生产可去掉
+    }
+    resp, err := reqES.Do(context.Background(), s.es.Transport)
+    if err != nil {
+        return err
+    }
+    defer resp.Body.Close()
+
+    if resp.IsError() {
+        return fmt.Errorf("ES index error: %s", resp.Status())
+    }
+    return nil
+}
+
+func (s *pubServiceImpl) deleteFromES(ent *types.PubEntity) error {
+    reqES := esapi.DeleteRequest{
+        Index:      "products_index",
+        DocumentID: ent.PublicCode,
+        Refresh:    "true",
+    }
+    resp, err := reqES.Do(context.Background(), s.es.Transport)
+    if err != nil {
+        return err
+    }
+    defer resp.Body.Close()
+
+    if resp.IsError() {
+        // 如果是 404, 可算正常
+        if resp.StatusCode != 404 {
+            return fmt.Errorf("ES delete error: %s", resp.Status())
+        }
+    }
+    return nil
+}
+
+// stringValue is a helper to safely convert an interface{} to a string
+func stringValue(v interface{}) string {
+    if v == nil {
+        return ""
+    }
+    if s, ok := v.(string); ok {
+        return s
+    }
+    return fmt.Sprintf("%v", v)
 }

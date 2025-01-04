@@ -13,6 +13,7 @@ import (
 
 func main() {
 	db := config.InitDB()
+	esClient := config.InitES()
 	app := config.SetupFiber()
 
 	// 路由组： /api/product/gift
@@ -27,7 +28,7 @@ func main() {
 
 	// Pub
 	pubRepo := repository.NewPubRepo(db)
-	pubSvc := service.NewPubService(pubRepo)
+	pubSvc := service.NewPubService(pubRepo, esClient)
 	pubHdl := handler.NewPubHandler(pubSvc)
 	pubHdl.RegisterRoutes(api)
 

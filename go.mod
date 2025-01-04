@@ -3,6 +3,7 @@ module 10000hk.com/vip_gift
 go 1.23.4
 
 require (
+	github.com/elastic/go-elasticsearch/v7 v7.17.10
 	github.com/gofiber/fiber/v2 v2.52.5
 	github.com/gofiber/jwt/v3 v3.3.10
 	github.com/golang-jwt/jwt/v4 v4.5.1

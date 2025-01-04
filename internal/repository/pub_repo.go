@@ -108,23 +108,52 @@ func (r *pubRepoImpl) ListPub(page, size int64) ([]types.PubEntity, int64, error
 	var list []types.PubEntity
 	var total int64
 
+	// 1) 统计总数 (分页需要)
 	tx := r.db.Model(&types.PubEntity{})
-
 	if err := tx.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
+
+	// 2) 应用分页
 	if page > 0 && size > 0 {
 		offset := (page - 1) * size
 		tx = tx.Offset(int(offset)).Limit(int(size))
 	}
 
-	// 查询 pub_entities
+	// 3) 查出所有 pub_entities
 	if err := tx.Find(&list).Error; err != nil {
 		return nil, 0, err
 	}
-	// 如果你需要把 Compositions 一并返回，则需要手动查找
-	// 这可能需要一个map: pub_id -> []compositions
-	// 这里示例就不写了，看你的业务需求
-	// ...
+
+	// 4) 如果需要“一并返回 Compositions”，我们手动再做一次查询:
+	//    先收集所有 pub_entities 的 ID
+	if len(list) == 0 {
+		// 没有任何数据，直接返回空
+		return list, total, nil
+	}
+	pubIDs := make([]uint64, 0, len(list))
+	for _, pub := range list {
+		pubIDs = append(pubIDs, pub.ID)
+	}
+
+	// 5) 一次性把所有关联的 PubComposeEntity 都捞出来
+	//    where gift_public_id IN (我们所有的 pub ID)
+	var comps []types.PubComposeEntity
+	if err := r.db.Where("gift_public_id IN ?", pubIDs).
+		Find(&comps).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// 6) 按 gift_public_id 分组存到 map 里
+	compMap := make(map[uint64][]types.PubComposeEntity)
+	for _, c := range comps {
+		compMap[c.GiftPublicID] = append(compMap[c.GiftPublicID], c)
+	}
+
+	// 7) 回填到每个 PubEntity 的 Compositions 字段
+	for i := range list {
+		list[i].Compositions = compMap[list[i].ID]
+	}
+
 	return list, total, nil
 }
