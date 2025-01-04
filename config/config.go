@@ -119,7 +119,7 @@ func InitES() *elasticsearch.Client {
 	// 如果索引不存在(返回404), 我们从外部 JSON 文件中读取 Mapping 并创建索引
 	if resp.StatusCode == 404 {
 		// 假设你的 JSON 文件叫做 "vip_pub_mapping.json" 并放在同级目录
-		mappingBytes, err := os.ReadFile("vip_pub_mapping.json")
+		mappingBytes, err := os.ReadFile("assets/vip_pub_mapping.json")
 		if err != nil {
 			log.Printf("failed to read mapping file: %v", err)
 			return client // 返回空或 client 看业务需求

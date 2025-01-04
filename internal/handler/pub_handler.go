@@ -23,9 +23,9 @@ func (h *PubHandler) RegisterRoutes(r fiber.Router) {
 
 	// Existing endpoints
 	r.Post("/public", h.CreatePub)
-	r.Get("/public/:publicCode", h.GetPub)
-	r.Put("/public/:publicCode", h.UpdatePub)
-	r.Delete("/public/:publicCode", h.DeletePub)
+	r.Get("/public/one/:publicCode", h.GetPub)
+	r.Put("/public/one/:publicCode", h.UpdatePub)
+	r.Delete("/public/one/:publicCode", h.DeletePub)
 	r.Post("/public/list", h.ListPub)
 
 	// NEW endpoints for search

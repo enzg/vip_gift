@@ -12,7 +12,7 @@
     },
     "mappings": {
       "properties": {
-        "id":         { "type": "long" },
+        "id":         { "type": "keyword" },
         "name": {
           "type": "text",
           "analyzer": "ik_custom_analyzer",
