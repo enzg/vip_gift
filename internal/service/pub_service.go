@@ -204,7 +204,7 @@ func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]ty
 
 	bodyBytes, _ := json.Marshal(query)
 	reqES := esapi.SearchRequest{
-		Index: []string{"products_index"}, // your index
+		Index: []string{"vip_pub"}, // your index
 		Body:  bytes.NewReader(bodyBytes),
 	}
 	resp, err := reqES.Do(context.Background(), s.es.Transport)
