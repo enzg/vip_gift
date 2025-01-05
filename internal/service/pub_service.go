@@ -244,6 +244,7 @@ func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]ty
 			ParValue:    floatValue(source["parValue"]),
 			Cover:       stringValue(source["cover"]),
 			Categories:  stringSliceValue(source["categories"]),
+			Pics:		stringSliceValue(source["pics"]),
 		}
 
 		results = append(results, dto)
