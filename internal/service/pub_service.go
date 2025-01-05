@@ -241,17 +241,9 @@ func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]ty
 			PublicCode:  stringValue(source["id"]),
 			ProductName: stringValue(source["name"]),
 			SalePrice:   floatValue(source["salePrice"]),
-			ParValue:    floatValue(source["parValue"])
-		}
-
-		if cArr, ok := source["categories"].([]interface{}); ok {
-			cats := make([]string, 0, len(cArr))
-			for _, cVal := range cArr {
-				if sVal, ok := cVal.(string); ok {
-					cats = append(cats, sVal)
-				}
-			}
-			dto.Categories = cats
+			ParValue:    floatValue(source["parValue"]),
+			Cover:       stringValue(source["cover"]),
+			Categories:  stringSliceValue(source["categories"]),
 		}
 
 		results = append(results, dto)
@@ -319,8 +311,10 @@ func (s *pubServiceImpl) indexToES(ent *types.PubEntity) error {
 		"id":         ent.PublicCode, // _id
 		"name":       ent.ProductName,
 		"categories": ent.Categories, // 需要在 PubEntity 中有
-		"salePrice": ent.SalePrice,
-		"parValue":  ent.ParValue,
+		"salePrice":  ent.SalePrice,
+		"parValue":   ent.ParValue,
+		"cover":      ent.Cover,
+		"pics":       ent.Pics,
 		"created_at": time.Now().Format(time.RFC3339),
 		"updated_at": time.Now().Format(time.RFC3339),
 	}
@@ -412,17 +406,35 @@ func (s *pubServiceImpl) BatchAddCategoryForPrefix(prefix, category string) erro
 	return nil
 }
 func floatValue(v interface{}) float64 {
-    if v == nil {
-        return 0.0
-    }
-    if f, ok := v.(float64); ok {
-        return f
-    }
-    // 如果还想兼容字符串->数字，可以做Parse
-    // log warn or silently ignore
-    return 0.0
+	if v == nil {
+		return 0.0
+	}
+	if f, ok := v.(float64); ok {
+		return f
+	}
+	// 如果还想兼容字符串->数字，可以做Parse
+	// log warn or silently ignore
+	return 0.0
 }
 
+// stringSliceValue 尝试将 v 转换为 []string，如果出错或不是字符串数组，就返回空切片
+func stringSliceValue(v interface{}) []string {
+	// 先断言成 []interface{}
+	arr, ok := v.([]interface{})
+	if !ok {
+		// 若不是 []interface{}，说明类型不符合
+		return nil
+	}
+
+	// 遍历 arr，把每个项若是 string 则放到 results
+	results := make([]string, 0, len(arr))
+	for _, item := range arr {
+		if s, ok2 := item.(string); ok2 {
+			results = append(results, s)
+		}
+	}
+	return results
+}
 func containsString(arr []string, val string) bool {
 	for _, a := range arr {
 		if a == val {
