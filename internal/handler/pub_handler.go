@@ -17,6 +17,17 @@ type PubHandler struct {
 }
 
 func NewPubHandler(svc service.PubService) *PubHandler {
+
+	// 从 Service 获取全部分类
+	cats, err := svc.GetAllCategories()
+	if err != nil {
+		log.Printf("[NewPubHandler] preload ephemeralMap from categories error: %v", err)
+	} else {
+		for _, cat := range cats {
+			service.CateToSmallPositive(cat)
+		}
+		log.Printf("[NewPubHandler] ephemeralMap loaded with %d categories.\n", len(cats))
+	}
 	return &PubHandler{svc: svc}
 }
 
