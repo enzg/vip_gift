@@ -3,6 +3,7 @@ package types
 
 import (
 	"encoding/json"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -137,3 +138,21 @@ func (d *PubEntity) GetESCategories() []string {
 	// 返回我们刚加的 Categories 字段
 	return d.Categories
 }
+
+// ------------------
+// 4. OrderEntity (订单)
+// ------------------
+
+type OrderEntity struct {
+	ID                uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
+	OrderId           string    `gorm:"size:50;uniqueIndex"      json:"orderId"`           // 由 Snowflake 或其他方法生成
+	DownstreamOrderId string    `gorm:"size:50;uniqueIndex"      json:"downstreamOrderId"` // 外部系统传入的订单ID
+	DataJSON          string    `gorm:"type:text"                json:"dataJSON"`          // 存放订单相关数据
+	Status            int64     `gorm:"not null;default:1"       json:"status"`            // 1=待处理, 2=完成, 3=取消等
+	CreatedAt         time.Time `json:"createdAt"`
+	UpdatedAt         time.Time `json:"updatedAt"`
+}
+func (o OrderEntity) GetOrderId() string { return o.OrderId }
+func (o OrderEntity) GetDownstreamOrderId() string { return o.DownstreamOrderId }
+func (o OrderEntity) GetDataJSON() string { return o.DataJSON }
+func (o OrderEntity) GetStatus() int64    { return o.Status }

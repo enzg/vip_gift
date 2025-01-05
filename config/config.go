@@ -49,6 +49,7 @@ func InitDB() *gorm.DB {
 		&types.GncEntity{},
 		&types.PubEntity{},
 		&types.PubComposeEntity{},
+		&types.OrderEntity{},
 	)
 
 	return db
@@ -76,13 +77,11 @@ func InitTestDB() *gorm.DB {
 		&types.GncEntity{},
 		&types.PubEntity{},
 		&types.PubComposeEntity{},
+		&types.OrderEntity{},
 	)
 
 	return db
 }
-
-// JWTSecretKey 需要与你的其他模块共享
-var JWTSecretKey = "#uuid_for_jwt"
 
 // SetupFiber 启动 Fiber，附带默认中间件
 func SetupFiber() *fiber.App {

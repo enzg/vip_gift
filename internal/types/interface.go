@@ -36,3 +36,22 @@ type GiftPublic interface {
 	// 组合信息（可能包含一个或多个基础权益品）
 	GetCompositions() []Composition
 }
+
+// --------------------- 新增的订单接口 ---------------------
+
+// GiftOrder 用于描述一个“订单”所需的关键信息；
+// 根据业务需要，可以只定义最核心的方法，也可额外扩展。
+type GiftOrder interface {
+	// 订单ID（可能用Snowflake生成）
+	GetOrderId() string
+	// 下游系统传入的订单ID
+	GetDownstreamOrderId() string
+	// 订单的JSON字段，如存放具体商品/权益数据
+	GetDataJSON() string
+	// 订单状态，1=待处理,2=已完成, etc.
+	GetStatus() int64
+
+	// 如果需要，可以继续加更多方法:
+	// GetCreatedAt() time.Time
+	// GetUpdatedAt() time.Time
+}

@@ -108,6 +108,33 @@ func (dto *PubDTO) ToEntity() (*PubEntity, error) {
 	return copyPubDTOToEntity(dto)
 }
 
+// ------------------
+// 4. OrderDTO
+// ------------------
+type OrderDTO struct {
+    DownstreamOrderId string `json:"downstreamOrderId"`
+    DataJSON          string `json:"dataJSON"`
+    OrderId           string `json:"orderId"`
+    Status            int64  `json:"status"`
+}
+
+func (dto *OrderDTO) FromEntity(ent *OrderEntity) error {
+    if ent == nil {
+        return nil
+    }
+    newDTO, err := copyOrderEntityToDTO(ent)
+    if err != nil {
+        return err
+    }
+    *dto = *newDTO
+    return nil
+}
+
+func (dto *OrderDTO) ToEntity() (*OrderEntity, error) {
+    return copyOrderDTOToEntity(dto)
+}
+
+
 // =====================================================================
 // HELPER FUNCTIONS (Private) - One place to unify the logic
 // =====================================================================
@@ -189,4 +216,20 @@ func copyPubDTOToEntity(dto *PubDTO) (*PubEntity, error) {
 		ent.Compositions = comps
 	}
 	return ent, nil
+}
+// ---------- Order HELPER ----------
+func copyOrderEntityToDTO(ent *OrderEntity) (*OrderDTO, error) {
+    dto := &OrderDTO{}
+    if err := copier.Copy(dto, ent); err != nil {
+        return nil, err
+    }
+    return dto, nil
+}
+
+func copyOrderDTOToEntity(dto *OrderDTO) (*OrderEntity, error) {
+    ent := &OrderEntity{}
+    if err := copier.Copy(ent, dto); err != nil {
+        return nil, err
+    }
+    return ent, nil
 }
