@@ -7,45 +7,63 @@ import (
 
 	"10000hk.com/vip_gift/config"
 	"10000hk.com/vip_gift/internal/handler"
+	"10000hk.com/vip_gift/internal/mq" // 新增: 引入消费者
 	"10000hk.com/vip_gift/internal/repository"
 	"10000hk.com/vip_gift/internal/service"
 	"10000hk.com/vip_gift/pkg"
 )
 
 func main() {
+	// 1) 加载环境变量
 	config.LoadEnv()
 
+	// 2) 初始化DB & ES
 	db := config.InitDB()
 	esClient := config.InitES()
+
+	// 3) Fiber
 	app := config.SetupFiber()
 
-	// 路由组： /api/product/gift
+	// 4) 路由组： /api/product/gift
 	api := app.Group("/api/product/gift")
-	// api.Use(handler.JWTMiddleware(jwtSecretKey))
+	// 如果需要JWT保护 => api.Use(handler.JWTMiddleware(jwtSecretKey))
 
-	// Pub
+	// 5) 注册 Pub 模块
 	pubRepo := repository.NewPubRepo(db)
 	pubSvc := service.NewPubService(pubRepo, esClient)
 	pubHdl := handler.NewPubHandler(pubSvc)
 	pubHdl.RegisterRoutes(api)
 
-	// Gnc
+	// 6) 注册 Gnc 模块
 	gncRepo := repository.NewGncRepo(db)
 	gncSvc := service.NewGncService(gncRepo)
 	gncHdl := handler.NewGncHandler(gncSvc)
 	gncHdl.RegisterRoutes(api)
-	// Order
-	orderRepo := repository.NewOrderRepo(db)
-	// init kafkaWriter, snowflakeFn...
-	//
-	// 1) 初始化 Kafka & Snowflake from our new modules
-	//    例如:
-	kafkaWriter := pkg.InitKafkaWriter("localhost:9092", "order-create")
-	snowflakeFn := pkg.InitSnowflake(1)
-	orderSvc := service.NewOrderService(orderRepo, kafkaWriter, snowflakeFn)
-	orderHdl := handler.NewOrderHandler(orderSvc)
-	orderHdl.RegisterRoutes(api) // /orders
 
+	// 7) 初始化 Kafka & Snowflake
+	//    从 pkg 包中获取初始化函数
+	kafkaWriter := pkg.InitKafkaWriter("localhost:9092", "order-create") // broker和topic可改
+	snowflakeFn := pkg.InitSnowflake(1)
+
+	// 8) Order 模块
+	orderRepo := repository.NewOrderRepo(db)
+	// 这里的 orderSvc 是“只发Kafka” or “先插DB再发Kafka”，取决于order_service.go的模式
+	orderSvc := service.NewOrderService(orderRepo, kafkaWriter, snowflakeFn /*, esClient*/)
+	orderHdl := handler.NewOrderHandler(orderSvc)
+	orderHdl.RegisterRoutes(api) // POST /orders, GET /orders/:orderId
+
+	// 9) 若要在同进程启动消费端:
+	//    初始化消费者, 并启动
+	orderConsumer := mq.NewOrderConsumer(
+		[]string{"localhost:9092"}, // broker list
+		"order-create",             // topic
+		"order_consumer_group",     // group ID
+		orderSvc,                   // 注入同一个 orderSvc
+	)
+	orderConsumer.Start()
+	defer orderConsumer.Stop()
+
+	// 10) 启动 Fiber
 	addr := ":3001"
 	fmt.Printf("Server listening on %s\n", addr)
 	log.Fatal(app.Listen(addr))
