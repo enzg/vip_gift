@@ -463,3 +463,16 @@ func containsString(arr []string, val string) bool {
 	}
 	return false
 }
+
+func CateToInt64Hash(cate string) int64 {
+    // 这里用一个简单的 FNV-1a 64 位哈希举例
+    const offset64 = 1469598103934665603
+    const prime64 = 1099511628211
+
+    h := uint64(offset64)
+    for i := 0; i < len(cate); i++ {
+        h ^= uint64(cate[i])
+        h *= prime64
+    }
+    return int64(h)
+}
