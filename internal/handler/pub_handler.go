@@ -23,8 +23,8 @@ func NewPubHandler(svc service.PubService) *PubHandler {
 func (h *PubHandler) RegisterRoutes(r fiber.Router) {
 	// /api/product/gift/pub
 	r.Get("/shop/one/:publicCode", h.GetPub)
-	r.Get("/shop/search", h.SearchPub)
-	r.Get("/shop/categories", h.GetPubCategories)
+	r.Post("/shop/search", h.SearchPub)
+	r.Post("/shop/categories", h.GetPubCategories)
 	r.Post("/shop/list", h.ListPub)
 	jwtSecretKey := os.Getenv("JWT_SECRET_KEY")
 	if jwtSecretKey == "" {
@@ -39,8 +39,8 @@ func (h *PubHandler) RegisterRoutes(r fiber.Router) {
 	r.Post("/public/list", h.ListPub)
 
 	// NEW endpoints for search
-	r.Get("/public/search", h.SearchPub)
-	r.Get("/public/categories", h.GetPubCategories)
+	r.Post("/public/search", h.SearchPub)
+	r.Post("/public/categories", h.GetPubCategories)
 
 	r.Post("/public/batch_category", h.BatchAddCategory)
 
@@ -129,20 +129,43 @@ func (h *PubHandler) ListPub(c *fiber.Ctx) error {
 // NEW: Search by keyword
 // GET /public/search?keyword=xxx&page=1&size=10
 // -------------------------------------------------------------------
+// func (h *PubHandler) SearchPub(c *fiber.Ctx) error {
+// 	keyword := c.Query("keyword", "")
+// 	pageQ := c.Query("page", "1")
+// 	sizeQ := c.Query("size", "10")
+
+// 	page, _ := strconv.ParseInt(pageQ, 10, 64)
+// 	size, _ := strconv.ParseInt(sizeQ, 10, 64)
+
+//		results, total, err := h.svc.SearchByKeyword(keyword, page, size)
+//		if err != nil {
+//			return ErrorJSON(c, 500, err.Error())
+//		}
+//		return SuccessJSON(c, fiber.Map{
+//			"keyword":  keyword,
+//			"total":    total,
+//			"dataList": results,
+//		})
+//	}
 func (h *PubHandler) SearchPub(c *fiber.Ctx) error {
-	keyword := c.Query("keyword", "")
-	pageQ := c.Query("page", "1")
-	sizeQ := c.Query("size", "10")
+	var req SearchRequest
+	if err := c.BodyParser(&req); err != nil {
+		return ErrorJSON(c, 400, "Invalid request body")
+	}
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.Size <= 0 {
+		req.Size = 10
+	}
 
-	page, _ := strconv.ParseInt(pageQ, 10, 64)
-	size, _ := strconv.ParseInt(sizeQ, 10, 64)
-
-	results, total, err := h.svc.SearchByKeyword(keyword, page, size)
+	results, total, err := h.svc.SearchByKeyword(req.Keyword, req.Page, req.Size)
 	if err != nil {
 		return ErrorJSON(c, 500, err.Error())
 	}
+
 	return SuccessJSON(c, fiber.Map{
-		"keyword":  keyword,
+		"keyword":  req.Keyword,
 		"total":    total,
 		"dataList": results,
 	})
@@ -152,7 +175,24 @@ func (h *PubHandler) SearchPub(c *fiber.Ctx) error {
 // NEW: Get categories list from ES
 // GET /public/categories
 // -------------------------------------------------------------------
+//
+//	func (h *PubHandler) GetPubCategories(c *fiber.Ctx) error {
+//		cats, err := h.svc.GetAllCategories()
+//		if err != nil {
+//			return ErrorJSON(c, 500, err.Error())
+//		}
+//		return SuccessJSON(c, fiber.Map{
+//			"dataList": cats,
+//			"total":    len(cats),
+//		})
+//	}
+//
+// POST /public/categories
+// Body: {}  (若无需参数)
 func (h *PubHandler) GetPubCategories(c *fiber.Ctx) error {
+	// 如果你需要解析 body，可定义一个 struct,
+	// 但若不需要参数，直接跳过 body 解析也行。
+
 	cats, err := h.svc.GetAllCategories()
 	if err != nil {
 		return ErrorJSON(c, 500, err.Error())

@@ -15,6 +15,11 @@ type BatchCategoryRequest struct {
 	Prefix   string `json:"prefix"`
 	Category string `json:"category"`
 }
+type SearchRequest struct {
+	Keyword string `json:"keyword"` // 可以加 omitempty
+	Page    int64  `json:"page"`
+	Size    int64  `json:"size"`
+}
 
 // 定义统一的响应结构
 type BaseResponse struct {
