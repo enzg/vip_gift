@@ -402,6 +402,7 @@ func (s *pubServiceImpl) BatchAddCategoryForPrefix(prefix, category string, tag 
 	// 2) 给每个 pubEntity 的 Categories 追加 category, 并同步到 ES
 	for i := range pubs {
 		pub := &pubs[i]
+		pub.Tag = tag
 		// 如果已经包含就不重复添加
 		if !containsString(pub.Categories, category) {
 			pub.Categories = append(pub.Categories, category)
