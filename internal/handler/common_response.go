@@ -14,6 +14,7 @@ type ListRequest struct {
 type BatchCategoryRequest struct {
 	Prefix   string `json:"prefix"`
 	Category string `json:"category"`
+	Tag      string `json:"tag"`
 }
 type SearchRequest struct {
 	Keyword string `json:"keyword"` // 可以加 omitempty

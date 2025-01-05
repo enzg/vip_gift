@@ -28,9 +28,9 @@ type PubService interface {
 	List(page, size int64) ([]types.PubDTO, int64, error)
 
 	// ----- Newly Added Methods -----
-	SearchByKeyword(keyword string, page, size int64) ([]types.PubDTO, int64, error)
+	SearchByKeyword(keyword string, page, size int64) ([]GroupedItem, int64, error)
 	GetAllCategories() ([]string, error)
-	BatchAddCategoryForPrefix(string, string) error
+	BatchAddCategoryForPrefix(string, string, string) error
 }
 
 type pubServiceImpl struct {
@@ -185,7 +185,13 @@ func (s *pubServiceImpl) List(page, size int64) ([]types.PubDTO, int64, error) {
 	return result, total, nil
 }
 
-func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]types.PubDTO, int64, error) {
+// GroupedItem 用于返回给调用者
+type GroupedItem struct {
+	Name string         `json:"name"`
+	Card []types.PubDTO `json:"card"`
+}
+
+func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]GroupedItem, int64, error) {
 	// 1) Build a match query on "name" field
 	from := (page - 1) * size
 	query := map[string]interface{}{
@@ -232,7 +238,10 @@ func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]ty
 
 	// 4) Extract the actual documents
 	hits, _ := sr["hits"].(map[string]interface{})["hits"].([]interface{})
-	var results []types.PubDTO
+	// var results []types.PubDTO
+
+	groupMap := make(map[string][]types.PubDTO)
+	var final []GroupedItem
 	for _, h := range hits {
 		doc := h.(map[string]interface{})
 		source := doc["_source"].(map[string]interface{})
@@ -244,13 +253,21 @@ func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]ty
 			ParValue:    floatValue(source["parValue"]),
 			Cover:       stringValue(source["cover"]),
 			Categories:  stringSliceValue(source["categories"]),
-			Pics:		stringSliceValue(source["pics"]),
+			Pics:        stringSliceValue(source["pics"]),
+			Tag:         stringValue(source["tag"]),
 		}
 
-		results = append(results, dto)
+		// results = append(results, dto)
+		groupMap[dto.Tag] = append(groupMap[dto.Tag], dto)
+	}
+	for tag, items := range groupMap {
+		final = append(final, GroupedItem{
+			Name: tag,
+			Card: items,
+		})
 	}
 
-	return results, totalHits, nil
+	return final, totalHits, nil
 }
 
 // -------------------------------------------------------------------
@@ -311,6 +328,7 @@ func (s *pubServiceImpl) indexToES(ent *types.PubEntity) error {
 	doc := map[string]interface{}{
 		"id":         ent.PublicCode, // _id
 		"name":       ent.ProductName,
+		"tag":        ent.Tag,
 		"categories": ent.Categories, // 需要在 PubEntity 中有
 		"salePrice":  ent.SalePrice,
 		"parValue":   ent.ParValue,
@@ -370,7 +388,7 @@ func stringValue(v interface{}) string {
 	}
 	return fmt.Sprintf("%v", v)
 }
-func (s *pubServiceImpl) BatchAddCategoryForPrefix(prefix, category string) error {
+func (s *pubServiceImpl) BatchAddCategoryForPrefix(prefix, category string, tag string) error {
 	// 1) 从 DB 中查出所有名称以 prefix 开头的 Pub
 	var pubs []types.PubEntity
 	if err := s.repo.FindPubByNamePrefix(prefix, &pubs); err != nil {

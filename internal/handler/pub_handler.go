@@ -125,28 +125,6 @@ func (h *PubHandler) ListPub(c *fiber.Ctx) error {
 	return SuccessJSON(c, respData)
 }
 
-// -------------------------------------------------------------------
-// NEW: Search by keyword
-// GET /public/search?keyword=xxx&page=1&size=10
-// -------------------------------------------------------------------
-// func (h *PubHandler) SearchPub(c *fiber.Ctx) error {
-// 	keyword := c.Query("keyword", "")
-// 	pageQ := c.Query("page", "1")
-// 	sizeQ := c.Query("size", "10")
-
-// 	page, _ := strconv.ParseInt(pageQ, 10, 64)
-// 	size, _ := strconv.ParseInt(sizeQ, 10, 64)
-
-//		results, total, err := h.svc.SearchByKeyword(keyword, page, size)
-//		if err != nil {
-//			return ErrorJSON(c, 500, err.Error())
-//		}
-//		return SuccessJSON(c, fiber.Map{
-//			"keyword":  keyword,
-//			"total":    total,
-//			"dataList": results,
-//		})
-//	}
 func (h *PubHandler) SearchPub(c *fiber.Ctx) error {
 	var req SearchRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -156,7 +134,7 @@ func (h *PubHandler) SearchPub(c *fiber.Ctx) error {
 		req.Page = 1
 	}
 	if req.Size <= 0 {
-		req.Size = 10
+		req.Size = 10000
 	}
 
 	results, total, err := h.svc.SearchByKeyword(req.Keyword, req.Page, req.Size)
@@ -165,9 +143,11 @@ func (h *PubHandler) SearchPub(c *fiber.Ctx) error {
 	}
 
 	return SuccessJSON(c, fiber.Map{
-		"keyword":  req.Keyword,
-		"total":    total,
-		"dataList": results,
+		"total": total,
+		"dataList": fiber.Map{
+			"title": req.Keyword,
+			"items": results,
+		},
 	})
 }
 
@@ -208,12 +188,12 @@ func (h *PubHandler) BatchAddCategory(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return ErrorJSON(c, 400, "invalid request body")
 	}
-	if req.Prefix == "" || req.Category == "" {
-		return ErrorJSON(c, 400, "prefix & category are required")
+	if req.Prefix == "" || req.Category == "" || req.Tag == "" {
+		return ErrorJSON(c, 400, "prefix & category & tag are required")
 	}
 
 	// 调用 Service
-	err := h.svc.BatchAddCategoryForPrefix(req.Prefix, req.Category)
+	err := h.svc.BatchAddCategoryForPrefix(req.Prefix, req.Category, req.Tag)
 	if err != nil {
 		return ErrorJSON(c, 500, err.Error())
 	}

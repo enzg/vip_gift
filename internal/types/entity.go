@@ -78,8 +78,9 @@ type PubEntity struct {
 	OriginData   string             `gorm:"type:text"         json:"originData"`
 	Status       int64              `gorm:"not null;default:0" json:"status"` // 1上架,0下架,2其他
 	ProductName  string             `gorm:"column:product_name;size:100;not null"   json:"productName"`
-	    // Categories 不落库，仅在业务或搜索时使用
-    Categories []string `gorm:"-" json:"categories,omitempty"`
+	// Categories 不落库，仅在业务或搜索时使用
+	Categories []string `gorm:"-" json:"categories,omitempty"`
+	Tag        string   `gorm:"-" json:"tag,omitempty"`
 }
 
 // 实现 GiftPublic 接口
@@ -124,14 +125,14 @@ func (d *PubEntity) AfterFind(tx *gorm.DB) (err error) {
 
 // 实现 GiftSearchable
 func (d *PubEntity) GetESID() string {
-    // 以 PublicCode 作为 ES 文档 ID
-    return d.PublicCode
+	// 以 PublicCode 作为 ES 文档 ID
+	return d.PublicCode
 }
 func (d *PubEntity) GetESName() string {
-    // 以 ProductName 作为搜索标题
-    return d.ProductName
+	// 以 ProductName 作为搜索标题
+	return d.ProductName
 }
 func (d *PubEntity) GetESCategories() []string {
-    // 返回我们刚加的 Categories 字段
-    return d.Categories
+	// 返回我们刚加的 Categories 字段
+	return d.Categories
 }

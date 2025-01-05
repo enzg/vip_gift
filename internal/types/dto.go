@@ -84,6 +84,7 @@ type PubDTO struct {
 	Pics        []string `json:"pics"`
 
 	Categories []string `json:"categories,omitempty"` // Tags / categories for ES
+	Tag        string   `json:"tag,omitempty"`
 	Status     int64    `json:"status"`
 	OriginData string   `json:"originData"`
 
