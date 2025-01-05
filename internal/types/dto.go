@@ -75,6 +75,7 @@ func (dto *PubComposeDTO) ToEntity() (*PubComposeEntity, error) {
 // 3. PubDTO
 // ------------------
 type PubDTO struct {
+	ID          uint64   `json:"id"`
 	PublicCode  string   `json:"publicCode"`
 	ProductName string   `json:"productName"`
 	SalePrice   float64  `json:"salePrice"`
@@ -112,28 +113,27 @@ func (dto *PubDTO) ToEntity() (*PubEntity, error) {
 // 4. OrderDTO
 // ------------------
 type OrderDTO struct {
-    DownstreamOrderId string `json:"downstreamOrderId"`
-    DataJSON          string `json:"dataJSON"`
-    OrderId           string `json:"orderId"`
-    Status            int64  `json:"status"`
+	DownstreamOrderId string `json:"downstreamOrderId"`
+	DataJSON          string `json:"dataJSON"`
+	OrderId           string `json:"orderId"`
+	Status            int64  `json:"status"`
 }
 
 func (dto *OrderDTO) FromEntity(ent *OrderEntity) error {
-    if ent == nil {
-        return nil
-    }
-    newDTO, err := copyOrderEntityToDTO(ent)
-    if err != nil {
-        return err
-    }
-    *dto = *newDTO
-    return nil
+	if ent == nil {
+		return nil
+	}
+	newDTO, err := copyOrderEntityToDTO(ent)
+	if err != nil {
+		return err
+	}
+	*dto = *newDTO
+	return nil
 }
 
 func (dto *OrderDTO) ToEntity() (*OrderEntity, error) {
-    return copyOrderDTOToEntity(dto)
+	return copyOrderDTOToEntity(dto)
 }
-
 
 // =====================================================================
 // HELPER FUNCTIONS (Private) - One place to unify the logic
@@ -217,19 +217,20 @@ func copyPubDTOToEntity(dto *PubDTO) (*PubEntity, error) {
 	}
 	return ent, nil
 }
+
 // ---------- Order HELPER ----------
 func copyOrderEntityToDTO(ent *OrderEntity) (*OrderDTO, error) {
-    dto := &OrderDTO{}
-    if err := copier.Copy(dto, ent); err != nil {
-        return nil, err
-    }
-    return dto, nil
+	dto := &OrderDTO{}
+	if err := copier.Copy(dto, ent); err != nil {
+		return nil, err
+	}
+	return dto, nil
 }
 
 func copyOrderDTOToEntity(dto *OrderDTO) (*OrderEntity, error) {
-    ent := &OrderEntity{}
-    if err := copier.Copy(ent, dto); err != nil {
-        return nil, err
-    }
-    return ent, nil
+	ent := &OrderEntity{}
+	if err := copier.Copy(ent, dto); err != nil {
+		return nil, err
+	}
+	return ent, nil
 }
