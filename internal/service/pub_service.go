@@ -357,15 +357,102 @@ func (s *pubServiceImpl) fillFromDBAndUpdateES(dto *types.PubDTO) error {
 // -------------------------------------------------------------------
 // 7) Get distinct categories via ES Aggregation (NEW)
 // -------------------------------------------------------------------
+// func (s *pubServiceImpl) GetAllCategories() ([]string, error) {
+// 	// Build a terms aggregation query
+// 	query := map[string]interface{}{
+// 		"size": 0,
+// 		"aggs": map[string]interface{}{
+// 			"catAgg": map[string]interface{}{
+// 				"terms": map[string]interface{}{
+// 					"field": "categories",
+// 					"size":  10000, // adjust as needed
+// 				},
+// 			},
+// 		},
+// 	}
+
+// 	bodyBytes, _ := json.Marshal(query)
+// 	reqES := esapi.SearchRequest{
+// 		Index: []string{"vip_pub"},
+// 		Body:  bytes.NewReader(bodyBytes),
+// 	}
+// 	resp, err := reqES.Do(context.Background(), s.es.Transport)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("ES agg error: %v", err)
+// 	}
+// 	defer resp.Body.Close()
+
+// 	if resp.IsError() {
+// 		return nil, fmt.Errorf("ES status: %s", resp.Status())
+// 	}
+
+// 	var sr map[string]interface{}
+// 	if err := json.NewDecoder(resp.Body).Decode(&sr); err != nil {
+// 		return nil, err
+// 	}
+
+// 	aggs := sr["aggregations"].(map[string]interface{})
+// 	catAgg := aggs["catAgg"].(map[string]interface{})
+// 	buckets := catAgg["buckets"].([]interface{})
+
+// 	var categories []string
+// 	for _, b := range buckets {
+// 		bucket := b.(map[string]interface{})
+// 		key := bucket["key"].(string)
+// 		categories = append(categories, key)
+// 	}
+
+//		return categories, nil
+//	}
+var defaultCates = []string{
+	"视频会员",
+	"音乐会员",
+	"阅读听书",
+	"网络工具",
+	"休闲生活",
+	"外卖商超",
+	"美食饮品",
+	"交通出行",
+	"腾讯QQ",
+}
+
 func (s *pubServiceImpl) GetAllCategories() ([]string, error) {
-	// Build a terms aggregation query
+	// 1) 拉取 ES 中分类
+	esCats, err := s.fetchEsCategories()
+	if err != nil {
+		return nil, err
+	}
+
+	// 2) 把 9 个默认分类放进 final, 顺序不变
+	final := make([]string, len(defaultCates))
+	copy(final, defaultCates)
+
+	// 用一个 set 来记录这 9 个，避免跟 ES 重复
+	used := make(map[string]bool, len(defaultCates))
+	for _, c := range defaultCates {
+		used[c] = true
+	}
+
+	// 3) 遍历 esCats, 若不在 used 中, 追加到 final
+	for _, cat := range esCats {
+		if !used[cat] {
+			final = append(final, cat)
+			used[cat] = true
+		}
+	}
+
+	return final, nil
+}
+
+// ========================= Elasticsearch Helper Methods =========================
+func (s *pubServiceImpl) fetchEsCategories() ([]string, error) {
 	query := map[string]interface{}{
 		"size": 0,
 		"aggs": map[string]interface{}{
 			"catAgg": map[string]interface{}{
 				"terms": map[string]interface{}{
 					"field": "categories",
-					"size":  10000, // adjust as needed
+					"size":  10000,
 				},
 			},
 		},
@@ -378,7 +465,7 @@ func (s *pubServiceImpl) GetAllCategories() ([]string, error) {
 	}
 	resp, err := reqES.Do(context.Background(), s.es.Transport)
 	if err != nil {
-		return nil, fmt.Errorf("ES agg error: %v", err)
+		return nil, fmt.Errorf("ES agg error: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -395,17 +482,14 @@ func (s *pubServiceImpl) GetAllCategories() ([]string, error) {
 	catAgg := aggs["catAgg"].(map[string]interface{})
 	buckets := catAgg["buckets"].([]interface{})
 
-	var categories []string
+	var cats []string
 	for _, b := range buckets {
 		bucket := b.(map[string]interface{})
 		key := bucket["key"].(string)
-		categories = append(categories, key)
+		cats = append(cats, key)
 	}
-
-	return categories, nil
+	return cats, nil
 }
-
-// ========================= Elasticsearch Helper Methods =========================
 
 // indexToES 把 pubEntity 同步到 ES
 func (s *pubServiceImpl) indexToES(ent *types.PubEntity) error {
