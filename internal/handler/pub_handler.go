@@ -136,17 +136,7 @@ func (h *PubHandler) SearchPub(c *fiber.Ctx) error {
 	if req.Size <= 0 {
 		req.Size = 10000
 	}
-	var cateMap = map[int64]string{
-		1: "视频会员",
-		2: "音乐会员",
-		3: "阅读听书",
-		4: "网络工具",
-		5: "休闲生活",
-		6: "外卖商超",
-		7: "美食饮品",
-		8: "交通出行",
-		9: "腾讯QQ",
-	}
+	var cateMap = service.DumpCateReverse()
 	keyword := cateMap[req.Cate]
 	results, total, err := h.svc.SearchByKeyword(keyword, req.Page, req.Size)
 	if err != nil {
@@ -174,9 +164,10 @@ func (h *PubHandler) GetPubCategories(c *fiber.Ctx) error {
 	// 2) 将 cats 转换成 [{ "cate": string, "id": int64 }, ...]
 	dataList := make([]map[string]interface{}, 0, len(cats))
 	for _, cat := range cats {
+		id, _ := service.CateToSmallPositive(cat)
 		dataList = append(dataList, map[string]interface{}{
 			"cate": cat,
-			"id":   service.CateToInt64Hash(cat), // 这里随意给个不重复的ID，如自增
+			"id":   id, // 这里随意给个不重复的ID，如自增
 		})
 	}
 

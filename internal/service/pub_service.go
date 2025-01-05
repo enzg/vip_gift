@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"10000hk.com/vip_gift/internal/repository"
@@ -463,16 +464,42 @@ func containsString(arr []string, val string) bool {
 	}
 	return false
 }
+// 内存中的cate字典：cate → id
+var ephemeralMap = make(map[string]int64)
+var nextID int64 = 1
+const maxCateCount = 1000 // 设定分类上限
 
-func CateToInt64Hash(cate string) int64 {
-    // 这里用一个简单的 FNV-1a 64 位哈希举例
-    const offset64 = 1469598103934665603
-    const prime64 = 1099511628211
+// 为了线程安全，使用一个互斥锁
+var cateLock sync.Mutex
 
-    h := uint64(offset64)
-    for i := 0; i < len(cate); i++ {
-        h ^= uint64(cate[i])
-        h *= prime64
+// CateToSmallPositive 不可逆，只分配正整数(1,2,3...)
+// 当新cate出现时，如果超过 maxCateCount 则返回错误
+func CateToSmallPositive(cate string) (int64, error) {
+    cateLock.Lock()
+    defer cateLock.Unlock()
+
+    // 如果已经分配过，直接返回
+    if id, ok := ephemeralMap[cate]; ok {
+        return id, nil
     }
-    return int64(h)
+
+    // 若还没出现过，但已到达上限
+    if nextID > maxCateCount {
+        return 0, fmt.Errorf("分类已达上限(%d)，无法为 %q 分配新的ID", maxCateCount, cate)
+    }
+
+    ephemeralMap[cate] = nextID
+    nextID++
+    return ephemeralMap[cate], nil
+}
+// DumpCateReverse 输出一个 map[int64]string，表示已分配的 (id -> cate)
+func DumpCateReverse() map[int64]string {
+    cateLock.Lock()
+    defer cateLock.Unlock()
+
+    reverseMap := make(map[int64]string, len(ephemeralMap))
+    for c, id := range ephemeralMap {
+        reverseMap[id] = c
+    }
+    return reverseMap
 }
