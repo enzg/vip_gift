@@ -197,7 +197,7 @@ func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]Gr
 	from := (page - 1) * size
 	query := map[string]interface{}{
 		"query": map[string]interface{}{
-			"match": map[string]interface{}{
+			"term": map[string]interface{}{
 				"categories": keyword,
 			},
 		},
