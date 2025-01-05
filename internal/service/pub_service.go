@@ -185,73 +185,6 @@ func (s *pubServiceImpl) List(page, size int64) ([]types.PubDTO, int64, error) {
 	return result, total, nil
 }
 
-// -------------------------------------------------------------------
-// 6) Search in ES by keyword (NEW)
-// -------------------------------------------------------------------
-// func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]types.PubDTO, error) {
-// 	// Build a match query on "name" field
-// 	from := (page - 1) * size
-// 	query := map[string]interface{}{
-// 		"query": map[string]interface{}{
-// 			"match": map[string]interface{}{
-// 				"name": keyword,
-// 			},
-// 		},
-// 		"from": from,
-// 		"size": size,
-// 		// You can also add "sort" here, e.g. [{"_score":{"order":"desc"}}]
-// 	}
-
-// 	bodyBytes, _ := json.Marshal(query)
-// 	reqES := esapi.SearchRequest{
-// 		Index: []string{"vip_pub"}, // your index
-// 		Body:  bytes.NewReader(bodyBytes),
-// 	}
-// 	resp, err := reqES.Do(context.Background(), s.es.Transport)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("ES search error: %v", err)
-// 	}
-// 	defer resp.Body.Close()
-
-// 	if resp.IsError() {
-// 		return nil, fmt.Errorf("ES search status: %s", resp.Status())
-// 	}
-
-// 	// Parse response
-// 	var sr map[string]interface{}
-// 	if err := json.NewDecoder(resp.Body).Decode(&sr); err != nil {
-// 		return nil, err
-// 	}
-
-// 	hits := sr["hits"].(map[string]interface{})["hits"].([]interface{})
-// 	var results []types.PubDTO
-// 	for _, h := range hits {
-// 		doc := h.(map[string]interface{})
-// 		source := doc["_source"].(map[string]interface{})
-
-// 		// Convert source to PubDTO
-// 		// We'll just do it manually here, or you can unmarshal JSON
-// 		dto := types.PubDTO{
-// 			PublicCode:  stringValue(source["id"]),
-// 			ProductName: stringValue(source["name"]),
-// 		}
-
-// 		// If you have categories in your PubDTO as well
-// 		if cArr, ok := source["categories"].([]interface{}); ok {
-// 			cats := make([]string, 0, len(cArr))
-// 			for _, cVal := range cArr {
-// 				if sVal, ok := cVal.(string); ok {
-// 					cats = append(cats, sVal)
-// 				}
-// 			}
-// 			dto.Categories = cats
-// 		}
-
-// 		results = append(results, dto)
-// 	}
-
-//		return results, nil
-//	}
 func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]types.PubDTO, int64, error) {
 	// 1) Build a match query on "name" field
 	from := (page - 1) * size
@@ -307,8 +240,8 @@ func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]ty
 		dto := types.PubDTO{
 			PublicCode:  stringValue(source["id"]),
 			ProductName: stringValue(source["name"]),
-			SalePrice:   source["salePrice"].(float64),
-			ParValue:    source["parValue"].(float64),
+			SalePrice:   floatValue(source["salePrice"]),
+			ParValue:    floatValue(source["parValue"])
 		}
 
 		if cArr, ok := source["categories"].([]interface{}); ok {
@@ -477,6 +410,17 @@ func (s *pubServiceImpl) BatchAddCategoryForPrefix(prefix, category string) erro
 
 	log.Printf("已为 %d 个产品追加分类 %q 并同步ES", len(pubs), category)
 	return nil
+}
+func floatValue(v interface{}) float64 {
+    if v == nil {
+        return 0.0
+    }
+    if f, ok := v.(float64); ok {
+        return f
+    }
+    // 如果还想兼容字符串->数字，可以做Parse
+    // log warn or silently ignore
+    return 0.0
 }
 
 func containsString(arr []string, val string) bool {
