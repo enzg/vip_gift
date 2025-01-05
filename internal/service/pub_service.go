@@ -192,9 +192,91 @@ type GroupedItem struct {
 	Card []types.PubDTO `json:"card"`
 }
 
+// func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]GroupedItem, int64, error) {
+// 	// 1) Build a match query on "name" field
+// 	from := (page - 1) * size
+// 	query := map[string]interface{}{
+// 		"query": map[string]interface{}{
+// 			"term": map[string]interface{}{
+// 				"categories": keyword,
+// 			},
+// 		},
+// 		"from": from,
+// 		"size": size,
+// 		// You can also add "sort" here, e.g. [{"_score":{"order":"desc"}}]
+// 	}
+
+// 	bodyBytes, _ := json.Marshal(query)
+// 	reqES := esapi.SearchRequest{
+// 		Index: []string{"vip_pub"}, // your ES index
+// 		Body:  bytes.NewReader(bodyBytes),
+// 	}
+// 	resp, err := reqES.Do(context.Background(), s.es.Transport)
+// 	if err != nil {
+// 		return nil, 0, fmt.Errorf("ES search error: %v", err)
+// 	}
+// 	defer resp.Body.Close()
+
+// 	if resp.IsError() {
+// 		return nil, 0, fmt.Errorf("ES search status: %s", resp.Status())
+// 	}
+
+// 	// 2) Parse the JSON response
+// 	var sr map[string]interface{}
+// 	if err := json.NewDecoder(resp.Body).Decode(&sr); err != nil {
+// 		return nil, 0, err
+// 	}
+
+// 	// 3) Extract total hits
+// 	var totalHits int64
+// 	if hitsVal, ok := sr["hits"].(map[string]interface{}); ok {
+// 		if totalObj, ok2 := hitsVal["total"].(map[string]interface{}); ok2 {
+// 			if val, ok3 := totalObj["value"].(float64); ok3 {
+// 				totalHits = int64(val)
+// 			}
+// 		}
+// 	}
+
+// 	// 4) Extract the actual documents
+// 	hits, _ := sr["hits"].(map[string]interface{})["hits"].([]interface{})
+// 	// var results []types.PubDTO
+
+// 	groupMap := make(map[string][]types.PubDTO)
+// 	var final []GroupedItem
+// 	for _, h := range hits {
+// 		doc := h.(map[string]interface{})
+// 		source := doc["_source"].(map[string]interface{})
+
+// 		dto := types.PubDTO{
+// 			PublicCode:  stringValue(source["id"]),
+// 			ProductName: stringValue(source["name"]),
+// 			SalePrice:   floatValue(source["salePrice"]),
+// 			ParValue:    floatValue(source["parValue"]),
+// 			Cover:       stringValue(source["cover"]),
+// 			Categories:  stringSliceValue(source["categories"]),
+// 			Pics:        stringSliceValue(source["pics"]),
+// 			Tag:         stringValue(source["tag"]),
+// 		}
+
+// 		// results = append(results, dto)
+// 		groupMap[dto.Tag] = append(groupMap[dto.Tag], dto)
+// 	}
+// 	for tag, items := range groupMap {
+// 		final = append(final, GroupedItem{
+// 			Name: tag,
+// 			Card: items,
+// 		})
+// 	}
+
+// 	return final, totalHits, nil
+// }
+
+// SearchByKeyword: 从 ES 中按分类(`keyword`)搜索,
+// 如果某条数据发现字段缺失, 则回查DB并更新ES.
 func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]GroupedItem, int64, error) {
-	// 1) Build a match query on "name" field
 	from := (page - 1) * size
+
+	// 1) 构建查询 (这里假设对 `categories` 字段做 term 查询)
 	query := map[string]interface{}{
 		"query": map[string]interface{}{
 			"term": map[string]interface{}{
@@ -203,12 +285,12 @@ func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]Gr
 		},
 		"from": from,
 		"size": size,
-		// You can also add "sort" here, e.g. [{"_score":{"order":"desc"}}]
 	}
 
+	// 2) 发送 SearchRequest
 	bodyBytes, _ := json.Marshal(query)
 	reqES := esapi.SearchRequest{
-		Index: []string{"vip_pub"}, // your ES index
+		Index: []string{"vip_pub"}, // 你的ES索引
 		Body:  bytes.NewReader(bodyBytes),
 	}
 	resp, err := reqES.Do(context.Background(), s.es.Transport)
@@ -221,13 +303,13 @@ func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]Gr
 		return nil, 0, fmt.Errorf("ES search status: %s", resp.Status())
 	}
 
-	// 2) Parse the JSON response
+	// 3) 解析返回
 	var sr map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&sr); err != nil {
 		return nil, 0, err
 	}
 
-	// 3) Extract total hits
+	// totalHits
 	var totalHits int64
 	if hitsVal, ok := sr["hits"].(map[string]interface{}); ok {
 		if totalObj, ok2 := hitsVal["total"].(map[string]interface{}); ok2 {
@@ -237,13 +319,11 @@ func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]Gr
 		}
 	}
 
-	// 4) Extract the actual documents
-	hits, _ := sr["hits"].(map[string]interface{})["hits"].([]interface{})
-	// var results []types.PubDTO
+	hitsArr, _ := sr["hits"].(map[string]interface{})["hits"].([]interface{})
 
+	// 4) 遍历命中的文档, 解析成 PubDTO, 若字段不完整则回查DB并更新ES
 	groupMap := make(map[string][]types.PubDTO)
-	var final []GroupedItem
-	for _, h := range hits {
+	for _, h := range hitsArr {
 		doc := h.(map[string]interface{})
 		source := doc["_source"].(map[string]interface{})
 
@@ -255,12 +335,23 @@ func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]Gr
 			Cover:       stringValue(source["cover"]),
 			Categories:  stringSliceValue(source["categories"]),
 			Pics:        stringSliceValue(source["pics"]),
+			Desc:        stringValue(source["desc"]),
 			Tag:         stringValue(source["tag"]),
 		}
 
-		// results = append(results, dto)
+		// 判断字段是否缺失, 若缺失则回查DB并更新
+		if isIncomplete(dto) {
+			if err := s.fillFromDBAndUpdateES(&dto); err != nil {
+				log.Printf("[WARN] fillFromDBAndUpdateES fail for %s: %v\n", dto.PublicCode, err)
+			}
+		}
+
+		// 分组逻辑, 这里以 dto.Tag 为分组 key
 		groupMap[dto.Tag] = append(groupMap[dto.Tag], dto)
 	}
+
+	// 5) 组装 final
+	var final []GroupedItem
 	for tag, items := range groupMap {
 		final = append(final, GroupedItem{
 			Name: tag,
@@ -269,6 +360,62 @@ func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]Gr
 	}
 
 	return final, totalHits, nil
+}
+
+// -------------------- 辅助函数: 检查字段是否不完整 --------------------
+func isIncomplete(dto types.PubDTO) bool {
+	// 示例: 如果 cover/pics为空 或 salePrice=0 认为不完整
+	if dto.Cover == "" || len(dto.Pics) == 0 || dto.SalePrice == 0 || dto.Desc == "" {
+		return true
+	}
+	// 你也可加更多逻辑: name==""、categories 为空等
+	return false
+}
+
+// -------------------- 回查DB并更新ES --------------------
+func (s *pubServiceImpl) fillFromDBAndUpdateES(dto *types.PubDTO) error {
+	// 1) 根据 publicCode 回查 DB
+	ent, err := s.repo.GetPubByPublicCode(dto.PublicCode)
+	if err != nil {
+		return fmt.Errorf("GetPubByPublicCode fail for %s: %w", dto.PublicCode, err)
+	}
+
+	// 2) 将 DB 中完整字段覆盖到 dto
+	var dbDTO types.PubDTO
+	_ = dbDTO.FromEntity(ent) // 拿到数据库完整信息
+
+	// 仅当 ES 里的字段为空时, 才用DB覆盖
+	if dto.Cover == "" {
+		dto.Cover = dbDTO.Cover
+	}
+	if len(dto.Pics) == 0 {
+		dto.Pics = dbDTO.Pics
+	}
+	if dto.SalePrice == 0 {
+		dto.SalePrice = dbDTO.SalePrice
+	}
+	if dto.ParValue == 0 {
+		dto.ParValue = dbDTO.ParValue
+	}
+	if dto.ProductName == "" {
+		dto.ProductName = dbDTO.ProductName
+	}
+	if len(dto.Categories) == 0 {
+		dto.Categories = dbDTO.Categories
+	}
+	if dto.Tag == "" {
+		dto.Tag = dbDTO.Tag
+	}
+	if dto.Desc == "" {
+		dto.Desc = dbDTO.Desc
+	}
+
+	// 3) 再调用 indexToES 更新 ES
+	newEnt, _ := dto.ToEntity() // 转回Entity
+	if err := s.indexToES(newEnt); err != nil {
+		return fmt.Errorf("re-index ES fail: %w", err)
+	}
+	return nil
 }
 
 // -------------------------------------------------------------------
@@ -464,9 +611,11 @@ func containsString(arr []string, val string) bool {
 	}
 	return false
 }
+
 // 内存中的cate字典：cate → id
 var ephemeralMap = make(map[string]int64)
 var nextID int64 = 1
+
 const maxCateCount = 1000 // 设定分类上限
 
 // 为了线程安全，使用一个互斥锁
@@ -475,31 +624,32 @@ var cateLock sync.Mutex
 // CateToSmallPositive 不可逆，只分配正整数(1,2,3...)
 // 当新cate出现时，如果超过 maxCateCount 则返回错误
 func CateToSmallPositive(cate string) (int64, error) {
-    cateLock.Lock()
-    defer cateLock.Unlock()
+	cateLock.Lock()
+	defer cateLock.Unlock()
 
-    // 如果已经分配过，直接返回
-    if id, ok := ephemeralMap[cate]; ok {
-        return id, nil
-    }
+	// 如果已经分配过，直接返回
+	if id, ok := ephemeralMap[cate]; ok {
+		return id, nil
+	}
 
-    // 若还没出现过，但已到达上限
-    if nextID > maxCateCount {
-        return 0, fmt.Errorf("分类已达上限(%d)，无法为 %q 分配新的ID", maxCateCount, cate)
-    }
+	// 若还没出现过，但已到达上限
+	if nextID > maxCateCount {
+		return 0, fmt.Errorf("分类已达上限(%d)，无法为 %q 分配新的ID", maxCateCount, cate)
+	}
 
-    ephemeralMap[cate] = nextID
-    nextID++
-    return ephemeralMap[cate], nil
+	ephemeralMap[cate] = nextID
+	nextID++
+	return ephemeralMap[cate], nil
 }
+
 // DumpCateReverse 输出一个 map[int64]string，表示已分配的 (id -> cate)
 func DumpCateReverse() map[int64]string {
-    cateLock.Lock()
-    defer cateLock.Unlock()
+	cateLock.Lock()
+	defer cateLock.Unlock()
 
-    reverseMap := make(map[int64]string, len(ephemeralMap))
-    for c, id := range ephemeralMap {
-        reverseMap[id] = c
-    }
-    return reverseMap
+	reverseMap := make(map[int64]string, len(ephemeralMap))
+	for c, id := range ephemeralMap {
+		reverseMap[id] = c
+	}
+	return reverseMap
 }
