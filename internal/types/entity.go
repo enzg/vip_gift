@@ -81,6 +81,7 @@ type PubEntity struct {
 	// Categories 不落库，仅在业务或搜索时使用
 	Categories []string `gorm:"-" json:"categories,omitempty"`
 	Tag        string   `gorm:"-" json:"tag,omitempty"`
+	Fetched    bool     `gorm:"-" json:"fetched,omitempty"`
 }
 
 // 实现 GiftPublic 接口

@@ -192,85 +192,6 @@ type GroupedItem struct {
 	Card []types.PubDTO `json:"card"`
 }
 
-// func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]GroupedItem, int64, error) {
-// 	// 1) Build a match query on "name" field
-// 	from := (page - 1) * size
-// 	query := map[string]interface{}{
-// 		"query": map[string]interface{}{
-// 			"term": map[string]interface{}{
-// 				"categories": keyword,
-// 			},
-// 		},
-// 		"from": from,
-// 		"size": size,
-// 		// You can also add "sort" here, e.g. [{"_score":{"order":"desc"}}]
-// 	}
-
-// 	bodyBytes, _ := json.Marshal(query)
-// 	reqES := esapi.SearchRequest{
-// 		Index: []string{"vip_pub"}, // your ES index
-// 		Body:  bytes.NewReader(bodyBytes),
-// 	}
-// 	resp, err := reqES.Do(context.Background(), s.es.Transport)
-// 	if err != nil {
-// 		return nil, 0, fmt.Errorf("ES search error: %v", err)
-// 	}
-// 	defer resp.Body.Close()
-
-// 	if resp.IsError() {
-// 		return nil, 0, fmt.Errorf("ES search status: %s", resp.Status())
-// 	}
-
-// 	// 2) Parse the JSON response
-// 	var sr map[string]interface{}
-// 	if err := json.NewDecoder(resp.Body).Decode(&sr); err != nil {
-// 		return nil, 0, err
-// 	}
-
-// 	// 3) Extract total hits
-// 	var totalHits int64
-// 	if hitsVal, ok := sr["hits"].(map[string]interface{}); ok {
-// 		if totalObj, ok2 := hitsVal["total"].(map[string]interface{}); ok2 {
-// 			if val, ok3 := totalObj["value"].(float64); ok3 {
-// 				totalHits = int64(val)
-// 			}
-// 		}
-// 	}
-
-// 	// 4) Extract the actual documents
-// 	hits, _ := sr["hits"].(map[string]interface{})["hits"].([]interface{})
-// 	// var results []types.PubDTO
-
-// 	groupMap := make(map[string][]types.PubDTO)
-// 	var final []GroupedItem
-// 	for _, h := range hits {
-// 		doc := h.(map[string]interface{})
-// 		source := doc["_source"].(map[string]interface{})
-
-// 		dto := types.PubDTO{
-// 			PublicCode:  stringValue(source["id"]),
-// 			ProductName: stringValue(source["name"]),
-// 			SalePrice:   floatValue(source["salePrice"]),
-// 			ParValue:    floatValue(source["parValue"]),
-// 			Cover:       stringValue(source["cover"]),
-// 			Categories:  stringSliceValue(source["categories"]),
-// 			Pics:        stringSliceValue(source["pics"]),
-// 			Tag:         stringValue(source["tag"]),
-// 		}
-
-// 		// results = append(results, dto)
-// 		groupMap[dto.Tag] = append(groupMap[dto.Tag], dto)
-// 	}
-// 	for tag, items := range groupMap {
-// 		final = append(final, GroupedItem{
-// 			Name: tag,
-// 			Card: items,
-// 		})
-// 	}
-
-// 	return final, totalHits, nil
-// }
-
 // SearchByKeyword: 从 ES 中按分类(`keyword`)搜索,
 // 如果某条数据发现字段缺失, 则回查DB并更新ES.
 func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]GroupedItem, int64, error) {
@@ -337,6 +258,7 @@ func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]Gr
 			Pics:        stringSliceValue(source["pics"]),
 			Desc:        stringValue(source["desc"]),
 			Tag:         stringValue(source["tag"]),
+			Fetched:     boolValue(source["feteched"]),
 		}
 
 		// 判断字段是否缺失, 若缺失则回查DB并更新
@@ -364,6 +286,9 @@ func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]Gr
 
 // -------------------- 辅助函数: 检查字段是否不完整 --------------------
 func isIncomplete(dto types.PubDTO) bool {
+	if dto.Fetched {
+		return false
+	}
 	// 示例: 如果 cover/pics为空 或 salePrice=0 认为不完整
 	if dto.Cover == "" || len(dto.Pics) == 0 || dto.SalePrice == 0 || dto.Desc == "" {
 		return true
@@ -374,48 +299,53 @@ func isIncomplete(dto types.PubDTO) bool {
 
 // -------------------- 回查DB并更新ES --------------------
 func (s *pubServiceImpl) fillFromDBAndUpdateES(dto *types.PubDTO) error {
-	// 1) 根据 publicCode 回查 DB
 	ent, err := s.repo.GetPubByPublicCode(dto.PublicCode)
 	if err != nil {
-		return fmt.Errorf("GetPubByPublicCode fail for %s: %w", dto.PublicCode, err)
+		return fmt.Errorf("GetPubByPublicCode fail: %w", err)
 	}
-
-	// 2) 将 DB 中完整字段覆盖到 dto
 	var dbDTO types.PubDTO
-	_ = dbDTO.FromEntity(ent) // 拿到数据库完整信息
+	_ = dbDTO.FromEntity(ent)
 
-	// 仅当 ES 里的字段为空时, 才用DB覆盖
-	if dto.Cover == "" {
-		dto.Cover = dbDTO.Cover
-	}
-	if len(dto.Pics) == 0 {
-		dto.Pics = dbDTO.Pics
-	}
-	if dto.SalePrice == 0 {
-		dto.SalePrice = dbDTO.SalePrice
-	}
-	if dto.ParValue == 0 {
-		dto.ParValue = dbDTO.ParValue
-	}
-	if dto.ProductName == "" {
-		dto.ProductName = dbDTO.ProductName
-	}
-	if len(dto.Categories) == 0 {
-		dto.Categories = dbDTO.Categories
-	}
-	if dto.Tag == "" {
-		dto.Tag = dbDTO.Tag
-	}
-	if dto.Desc == "" {
-		dto.Desc = dbDTO.Desc
+	// 如果 dbDTO 也是空, 说明确实无数据
+	// => 标识这个文档已检查过(空)
+	// => 下次就不再重复
+	allEmpty := dbDTO.Cover == "" && len(dbDTO.Pics) == 0 && dbDTO.SalePrice == 0
+	if allEmpty {
+		// 你可以用 "fetched" 或 "final" 字段表示
+		dto.Fetched = true
+	} else {
+		// 	// 仅当 ES 里的字段为空时, 才用DB覆盖
+		if dto.Cover == "" {
+			dto.Cover = dbDTO.Cover
+		}
+		if len(dto.Pics) == 0 {
+			dto.Pics = dbDTO.Pics
+		}
+		if dto.SalePrice == 0 {
+			dto.SalePrice = dbDTO.SalePrice
+		}
+		if dto.ParValue == 0 {
+			dto.ParValue = dbDTO.ParValue
+		}
+		if dto.ProductName == "" {
+			dto.ProductName = dbDTO.ProductName
+		}
+		if len(dto.Categories) == 0 {
+			dto.Categories = dbDTO.Categories
+		}
+		if dto.Tag == "" {
+			dto.Tag = dbDTO.Tag
+		}
+		if dto.Desc == "" {
+			dto.Desc = dbDTO.Desc
+		}
+
+		dto.Fetched = dto.Fetched || allEmpty
 	}
 
-	// 3) 再调用 indexToES 更新 ES
-	newEnt, _ := dto.ToEntity() // 转回Entity
-	if err := s.indexToES(newEnt); err != nil {
-		return fmt.Errorf("re-index ES fail: %w", err)
-	}
-	return nil
+	// 重新写回 ES
+	newEnt, _ := dto.ToEntity()
+	return s.indexToES(newEnt)
 }
 
 // -------------------------------------------------------------------
@@ -482,6 +412,7 @@ func (s *pubServiceImpl) indexToES(ent *types.PubEntity) error {
 		"parValue":   ent.ParValue,
 		"cover":      ent.Cover,
 		"pics":       ent.Pics,
+		"fetched":    ent.Fetched,
 		"created_at": time.Now().Format(time.RFC3339),
 		"updated_at": time.Now().Format(time.RFC3339),
 	}
@@ -535,6 +466,12 @@ func stringValue(v interface{}) string {
 		return s
 	}
 	return fmt.Sprintf("%v", v)
+}
+func boolValue(v interface{}) bool {
+	if b, ok := v.(bool); ok {
+		return b
+	}
+	return false
 }
 func (s *pubServiceImpl) BatchAddCategoryForPrefix(prefix, category string, tag string) error {
 	// 1) 从 DB 中查出所有名称以 prefix 开头的 Pub

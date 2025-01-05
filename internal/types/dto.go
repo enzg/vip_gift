@@ -89,6 +89,7 @@ type PubDTO struct {
 	OriginData string   `json:"originData"`
 
 	Compositions []PubComposeDTO `json:"compositions,omitempty"`
+	Fetched      bool            `json:"fetched"`
 }
 
 func (dto *PubDTO) FromEntity(ent *PubEntity) error {
