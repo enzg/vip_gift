@@ -25,6 +25,7 @@ func (h *PubHandler) RegisterRoutes(r fiber.Router) {
 	r.Get("/shop/one/:publicCode", h.GetPub)
 	r.Get("/shop/search", h.SearchPub)
 	r.Get("/shop/categories", h.GetPubCategories)
+	r.Post("/shop/list", h.ListPub)
 	jwtSecretKey := os.Getenv("JWT_SECRET_KEY")
 	if jwtSecretKey == "" {
 		log.Fatal("jwtSecretKey environment variable is not set")
