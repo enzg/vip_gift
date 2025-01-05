@@ -79,9 +79,9 @@ type PubEntity struct {
 	OriginData   string             `gorm:"type:text"         json:"originData"`
 	Status       int64              `gorm:"not null;default:0" json:"status"` // 1上架,0下架,2其他
 	ProductName  string             `gorm:"column:product_name;size:100;not null"   json:"productName"`
-	// Categories 不落库，仅在业务或搜索时使用
-	Categories []string `gorm:"-" json:"categories,omitempty"`
-	Tag        string   `gorm:"-" json:"tag,omitempty"`
+	Tag             string   `gorm:"column:tag;size:255"      json:"tag"`                  // 直接映射到 DB
+	Categories      []string `gorm:"-"                       json:"categories,omitempty"` // 不直接存表
+	CategoriesJSON  string   `gorm:"column:categories_json;type:text"  json:"-"`          // 用于持久化 JSON
 	Fetched    bool     `gorm:"-" json:"fetched,omitempty"`
 }
 
@@ -108,20 +108,43 @@ func (d *PubEntity) BeforeSave(tx *gorm.DB) (err error) {
 	} else {
 		d.PicsJSON = "[]"
 	}
+		// 2) 序列化 categories => categories_json
+		if d.Categories != nil {
+			b, err := json.Marshal(d.Categories)
+			if err != nil {
+				return err
+			}
+			d.CategoriesJSON = string(b)
+		} else {
+			d.CategoriesJSON = "[]"
+		}
 	return nil
 }
 
 func (d *PubEntity) AfterFind(tx *gorm.DB) (err error) {
+	// 1) 反序列化 pics
 	if d.PicsJSON == "" {
 		d.Pics = []string{}
-		return nil
+	} else {
+		var tmp []string
+		if err := json.Unmarshal([]byte(d.PicsJSON), &tmp); err != nil {
+			d.Pics = []string{}
+		} else {
+			d.Pics = tmp
+		}
 	}
-	var tmp []string
-	if err := json.Unmarshal([]byte(d.PicsJSON), &tmp); err != nil {
-		d.Pics = []string{}
-		return nil
+
+	// 2) 反序列化 categories
+	if d.CategoriesJSON == "" {
+		d.Categories = []string{}
+	} else {
+		var cats []string
+		if err := json.Unmarshal([]byte(d.CategoriesJSON), &cats); err != nil {
+			d.Categories = []string{}
+		} else {
+			d.Categories = cats
+		}
 	}
-	d.Pics = tmp
 	return nil
 }
 
