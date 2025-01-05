@@ -137,7 +137,23 @@ func (h *PubHandler) SearchPub(c *fiber.Ctx) error {
 		req.Size = 10000
 	}
 	var cateMap = map[int64]string{
-		1: "视频会员",
+		1: "视频会员",// -------------------------------------------------------------------
+		// NEW: Get categories list from ES
+		// GET /public/categories
+		// -------------------------------------------------------------------
+		//
+		//	func (h *PubHandler) GetPubCategories(c *fiber.Ctx) error {
+		//		cats, err := h.svc.GetAllCategories()
+		//		if err != nil {
+		//			return ErrorJSON(c, 500, err.Error())
+		//		}
+		//		return SuccessJSON(c, fiber.Map{
+		//			"dataList": cats,
+		//			"total":    len(cats),
+		//		})
+		//	}
+		//
+
 		2: "音乐会员",
 		3: "阅读听书",
 		4: "网络工具",
@@ -162,36 +178,46 @@ func (h *PubHandler) SearchPub(c *fiber.Ctx) error {
 	})
 }
 
-// -------------------------------------------------------------------
-// NEW: Get categories list from ES
-// GET /public/categories
-// -------------------------------------------------------------------
-//
-//	func (h *PubHandler) GetPubCategories(c *fiber.Ctx) error {
-//		cats, err := h.svc.GetAllCategories()
-//		if err != nil {
-//			return ErrorJSON(c, 500, err.Error())
-//		}
-//		return SuccessJSON(c, fiber.Map{
-//			"dataList": cats,
-//			"total":    len(cats),
-//		})
-//	}
-//
-// POST /public/categories
-// Body: {}  (若无需参数)
-func (h *PubHandler) GetPubCategories(c *fiber.Ctx) error {
-	// 如果你需要解析 body，可定义一个 struct,
-	// 但若不需要参数，直接跳过 body 解析也行。
+// // POST /public/categories
+// // Body: {}  (若无需参数)
+// func (h *PubHandler) GetPubCategories(c *fiber.Ctx) error {
+// 	// 如果你需要解析 body，可定义一个 struct,
+// 	// 但若不需要参数，直接跳过 body 解析也行。
 
-	cats, err := h.svc.GetAllCategories()
-	if err != nil {
-		return ErrorJSON(c, 500, err.Error())
-	}
-	return SuccessJSON(c, fiber.Map{
-		"dataList": cats,
-		"total":    len(cats),
-	})
+// 	cats, err := h.svc.GetAllCategories()
+// 	if err != nil {
+// 		return ErrorJSON(c, 500, err.Error())
+// 	}
+// 	return SuccessJSON(c, fiber.Map{
+// 		"dataList": cats,
+// 		"total":    len(cats),
+// 	})
+// }
+// POST /public/categories
+// Body: {} (若不需要参数)
+func (h *PubHandler) GetPubCategories(c *fiber.Ctx) error {
+    // 1) 调用 Service 获取 categories 字符串切片
+    cats, err := h.svc.GetAllCategories()
+    if err != nil {
+        return ErrorJSON(c, 500, err.Error())
+    }
+
+    // 2) 将 cats 转换成 [{ "cate": string, "id": int64 }, ...]
+    dataList := make([]map[string]interface{}, 0, len(cats))
+    var idCounter int64 = 1
+    for _, cat := range cats {
+        dataList = append(dataList, map[string]interface{}{
+            "cate": cat,
+            "id":   idCounter, // 这里随意给个不重复的ID，如自增
+        })
+        idCounter++
+    }
+
+    // 3) 返回给前端
+    return SuccessJSON(c, fiber.Map{
+        "dataList": dataList,
+        "total":    len(dataList),
+    })
 }
 
 func (h *PubHandler) BatchAddCategory(c *fiber.Ctx) error {
