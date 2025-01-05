@@ -136,8 +136,19 @@ func (h *PubHandler) SearchPub(c *fiber.Ctx) error {
 	if req.Size <= 0 {
 		req.Size = 10000
 	}
-
-	results, total, err := h.svc.SearchByKeyword(req.Keyword, req.Page, req.Size)
+	var cateMap = map[int64]string{
+		1: "视频会员",
+		2: "音乐会员",
+		3: "阅读听书",
+		4: "网络工具",
+		5: "休闲生活",
+		6: "外卖商超",
+		7: "美食饮品",
+		8: "交通出行",
+		9: "腾讯QQ",
+	}
+	keyword := cateMap[req.Cate]
+	results, total, err := h.svc.SearchByKeyword(keyword, req.Page, req.Size)
 	if err != nil {
 		return ErrorJSON(c, 500, err.Error())
 	}
@@ -145,7 +156,7 @@ func (h *PubHandler) SearchPub(c *fiber.Ctx) error {
 	return SuccessJSON(c, fiber.Map{
 		"total": total,
 		"dataList": fiber.Map{
-			"title": req.Keyword,
+			"title": keyword,
 			"items": results,
 		},
 	})

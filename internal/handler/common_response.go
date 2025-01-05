@@ -17,9 +17,9 @@ type BatchCategoryRequest struct {
 	Tag      string `json:"tag"`
 }
 type SearchRequest struct {
-	Keyword string `json:"keyword"` // 可以加 omitempty
-	Page    int64  `json:"page"`
-	Size    int64  `json:"size"`
+	Cate int64 `json:"cate"` // 可以加 omitempty
+	Page int64 `json:"page"`
+	Size int64 `json:"size"`
 }
 
 // 定义统一的响应结构
