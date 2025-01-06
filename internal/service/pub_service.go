@@ -120,8 +120,14 @@ func (s *pubServiceImpl) UpdateByPublicCode(publicCode string, dto *types.PubDTO
 	if len(dto.Categories) > 0 {
 		oldEnt.Categories = dto.Categories
 	}
+	if len(dto.Pics) > 0 {
+		oldEnt.Pics = dto.Pics
+	}
 	if dto.Tag != "" {
 		oldEnt.Tag = dto.Tag
+	}
+	if dto.ProductName != "" {
+		oldEnt.ProductName = dto.ProductName
 	}
 
 	// 更新组合(Compositions)
