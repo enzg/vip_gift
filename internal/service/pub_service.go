@@ -206,10 +206,12 @@ type GroupedItem struct {
 
 // SearchByKeyword: 从 ES 中按分类(`keyword`)搜索,
 // 如果某条数据发现字段缺失, 则回查DB并更新ES.
+
 func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]GroupedItem, int64, error) {
 	from := (page - 1) * size
 
-	// 1) 构建查询 (这里假设对 `categories` 字段做 term 查询)
+	// 1) 构建查询
+	// 在 “term” 查询基础上，新增 "sort": [{"parValue": {"order": "asc"}}]
 	query := map[string]interface{}{
 		"query": map[string]interface{}{
 			"term": map[string]interface{}{
@@ -218,12 +220,19 @@ func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]Gr
 		},
 		"from": from,
 		"size": size,
+		"sort": []interface{}{
+			map[string]interface{}{
+				"parValue": map[string]interface{}{
+					"order": "asc",
+				},
+			},
+		},
 	}
 
 	// 2) 发送 SearchRequest
 	bodyBytes, _ := json.Marshal(query)
 	reqES := esapi.SearchRequest{
-		Index: []string{"vip_pub"}, // 你的ES索引
+		Index: []string{"vip_pub"}, // 你的 ES 索引名
 		Body:  bytes.NewReader(bodyBytes),
 	}
 	resp, err := reqES.Do(context.Background(), s.es.Transport)
@@ -242,7 +251,7 @@ func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]Gr
 		return nil, 0, err
 	}
 
-	// totalHits
+	// 4) 提取 totalHits
 	var totalHits int64
 	if hitsVal, ok := sr["hits"].(map[string]interface{}); ok {
 		if totalObj, ok2 := hitsVal["total"].(map[string]interface{}); ok2 {
@@ -252,39 +261,37 @@ func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]Gr
 		}
 	}
 
+	// 5) 提取文档 hits
 	hitsArr, _ := sr["hits"].(map[string]interface{})["hits"].([]interface{})
-
-	// 4) 遍历命中的文档, 解析成 PubDTO, 若字段不完整则回查DB并更新ES
 	groupMap := make(map[string][]types.PubDTO)
+
 	for _, h := range hitsArr {
 		doc := h.(map[string]interface{})
-		source := doc["_source"].(map[string]interface{})
+		src := doc["_source"].(map[string]interface{})
 
 		dto := types.PubDTO{
-			PublicCode:  stringValue(source["id"]),
-			ProductName: stringValue(source["name"]),
-			SalePrice:   floatValue(source["salePrice"]),
-			ParValue:    floatValue(source["parValue"]),
-			Cover:       stringValue(source["cover"]),
-			Categories:  stringSliceValue(source["categories"]),
-			Pics:        stringSliceValue(source["pics"]),
-			Desc:        stringValue(source["desc"]),
-			Tag:         stringValue(source["tag"]),
-			Fetched:     boolValue(source["feteched"]),
+			PublicCode:  stringValue(src["id"]),
+			ProductName: stringValue(src["name"]),
+			SalePrice:   floatValue(src["salePrice"]),
+			ParValue:    floatValue(src["parValue"]),
+			Cover:       stringValue(src["cover"]),
+			Categories:  stringSliceValue(src["categories"]),
+			Pics:        stringSliceValue(src["pics"]),
+			Desc:        stringValue(src["desc"]),
+			Tag:         stringValue(src["tag"]),
+			Fetched:     boolValue(src["fetched"]),
 		}
 
-		// 判断字段是否缺失, 若缺失则回查DB并更新
+		// 如果要做 isIncomplete / fillFromDBAndUpdateES，就保留逻辑
 		if isIncomplete(dto) {
 			if err := s.fillFromDBAndUpdateES(&dto); err != nil {
 				log.Printf("[WARN] fillFromDBAndUpdateES fail for %s: %v\n", dto.PublicCode, err)
 			}
 		}
-
-		// 分组逻辑, 这里以 dto.Tag 为分组 key
 		groupMap[dto.Tag] = append(groupMap[dto.Tag], dto)
 	}
 
-	// 5) 组装 final
+	// 6) 分组输出
 	var final []GroupedItem
 	for tag, items := range groupMap {
 		final = append(final, GroupedItem{
@@ -292,7 +299,6 @@ func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]Gr
 			Card: items,
 		})
 	}
-
 	return final, totalHits, nil
 }
 
