@@ -9,7 +9,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// OrderHandler 处理订单相关接口
 type OrderHandler struct {
 	svc service.OrderService
 }
@@ -21,41 +20,87 @@ func NewOrderHandler(svc service.OrderService) *OrderHandler {
 
 // RegisterRoutes 注册路由
 func (h *OrderHandler) RegisterRoutes(r fiber.Router) {
-	// 如果你有 JWT 校验，可在外部 r.Use(JWTMiddleware(...))
-	r.Post("/orders", h.CreateOrder)      // POST /orders
-	r.Get("/orders/:orderId", h.GetOrder) // GET  /orders/:orderId
+	// 需要 JWT 保护可在外层 r.Use(JWTMiddleware(...))
+
+	// 1) 创建订单: POST /orders
+	r.Post("/orders", h.CreateOrder)
+
+	// 2) 获取单条订单 (改为 POST /orders/one)
+	r.Post("/orders/one", h.GetOneOrder)
+
+	// 3) 分页查看订单列表: POST /orders/list
+	r.Post("/orders/list", h.ListOrders)
 }
 
-// CreateOrder
+// -------------------------------------------------------------------
+// 1) CreateOrder
 // Body: { "downstreamOrderId":"XXX", "dataJSON":"XXX" }
+// -------------------------------------------------------------------
 func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 	var dto types.OrderDTO
 	if err := c.BodyParser(&dto); err != nil {
-		return ErrorJSON(c, 400, err.Error()) // 使用统一错误返回
+		return ErrorJSON(c, 400, err.Error())
 	}
 
-	// 调用 service
 	out, err := h.svc.CreateOrder(context.Background(), &dto)
 	if err != nil {
-		return ErrorJSON(c, 500, err.Error()) // 统一错误返回
+		return ErrorJSON(c, 500, err.Error())
 	}
-
-	// 成功
-	return SuccessJSON(c, out) // 统一成功
+	return SuccessJSON(c, out)
 }
 
-// GetOrder
-// GET /orders/:orderId
-func (h *OrderHandler) GetOrder(c *fiber.Ctx) error {
-	orderId := c.Params("orderId", "")
-	if orderId == "" {
+// -------------------------------------------------------------------
+// 2) GetOneOrder
+// POST /orders/one
+// Body: { "orderId":"xxxx" }
+// -------------------------------------------------------------------
+func (h *OrderHandler) GetOneOrder(c *fiber.Ctx) error {
+	var req struct {
+		OrderId string `json:"orderId"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return ErrorJSON(c, 400, "invalid request body")
+	}
+	if req.OrderId == "" {
 		return ErrorJSON(c, 400, "orderId is required")
 	}
 
-	out, err := h.svc.GetOrder(context.Background(), orderId)
+	out, err := h.svc.GetOrder(context.Background(), req.OrderId)
 	if err != nil {
-		return ErrorJSON(c, 404, err.Error()) 
+		return ErrorJSON(c, 404, err.Error())
+	}
+	return SuccessJSON(c, out)
+}
+
+// -------------------------------------------------------------------
+// 3) ListOrders
+// POST /orders/list
+// Body: { "page":1, "size":10 }
+// -------------------------------------------------------------------
+func (h *OrderHandler) ListOrders(c *fiber.Ctx) error {
+	var req struct {
+		Page int64 `json:"page"`
+		Size int64 `json:"size"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return ErrorJSON(c, 400, err.Error())
+	}
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.Size <= 0 {
+		req.Size = 10
 	}
 
-	return SuccessJSON(c, out)
+	items, total, err := h.svc.ListOrder(context.Background(), req.Page, req.Size)
+	if err != nil {
+		return ErrorJSON(c, 500, err.Error())
+	}
+
+	// 返回 { "total":..., "dataList": [...] }
+	resp := fiber.Map{
+		"total":    total,
+		"dataList": items,
+	}
+	return SuccessJSON(c, resp)
 }
