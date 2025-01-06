@@ -24,7 +24,8 @@ type OrderRepo interface {
 	DeleteOrderByOrderId(orderId string) error
 
 	// ListOrder 分页列出订单
-	ListOrder(page, size int64) ([]types.OrderEntity, int64, error)
+	// ListOrder(page, size int64) ([]types.OrderEntity, int64, error)
+	ListOrder(page, size int64, orderIds, downstreamIds []string) ([]types.OrderEntity, int64, error)
 }
 
 // orderRepoImpl 实现 OrderRepo 接口
@@ -82,7 +83,32 @@ func (r *orderRepoImpl) DeleteOrderByOrderId(orderId string) error {
 }
 
 // ListOrder 简易分页列出订单
-func (r *orderRepoImpl) ListOrder(page, size int64) ([]types.OrderEntity, int64, error) {
+// func (r *orderRepoImpl) ListOrder(page, size int64) ([]types.OrderEntity, int64, error) {
+// 	var list []types.OrderEntity
+// 	var total int64
+
+// 	if page <= 0 {
+// 		page = 1
+// 	}
+// 	if size <= 0 {
+// 		size = 10
+// 	}
+
+// 	tx := r.db.Model(&types.OrderEntity{})
+
+// 	// 统计总数
+// 	if err := tx.Count(&total).Error; err != nil {
+// 		return nil, 0, errors.Join(err, errors.New("ListOrder count error"))
+// 	}
+// 	offset := (page - 1) * size
+// 	// 分页查询
+// 	if err := tx.Offset(int(offset)).Limit(int(size)).Order("created_at DESC").Find(&list).Error; err != nil {
+// 		return nil, 0, errors.Join(err, errors.New("ListOrder find error"))
+// 	}
+
+// 	return list, total, nil
+// }
+func (r *orderRepoImpl) ListOrder(page, size int64, orderIds, downstreamIds []string) ([]types.OrderEntity, int64, error) {
 	var list []types.OrderEntity
 	var total int64
 
@@ -95,14 +121,31 @@ func (r *orderRepoImpl) ListOrder(page, size int64) ([]types.OrderEntity, int64,
 
 	tx := r.db.Model(&types.OrderEntity{})
 
-	// 统计总数
-	if err := tx.Count(&total).Error; err != nil {
-		return nil, 0, errors.Join(err, errors.New("ListOrder count error"))
+	// 如果 orderIds 或 downstreamIds 有值，就做 WHERE
+	// "如果二者都不为空 => union(OR) 结果"
+	if len(orderIds) > 0 && len(downstreamIds) > 0 {
+		// OR condition
+		// order_id IN orderIds  OR  downstream_order_id IN downstreamIds
+		tx = tx.Where("(order_id IN ? OR downstream_order_id IN ?)", orderIds, downstreamIds)
+	} else if len(orderIds) > 0 {
+		// 仅 filter by orderIds
+		tx = tx.Where("order_id IN ?", orderIds)
+	} else if len(downstreamIds) > 0 {
+		// 仅 filter by downstream
+		tx = tx.Where("downstream_order_id IN ?", downstreamIds)
 	}
+	// else => no filter
+
+	// count
+	if err := tx.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("ListOrder count error: %w", err)
+	}
+
 	offset := (page - 1) * size
-	// 分页查询
-	if err := tx.Offset(int(offset)).Limit(int(size)).Order("created_at DESC").Find(&list).Error; err != nil {
-		return nil, 0, errors.Join(err, errors.New("ListOrder find error"))
+	// query
+	if err := tx.Offset(int(offset)).Limit(int(size)).
+		Order("created_at DESC").Find(&list).Error; err != nil {
+		return nil, 0, fmt.Errorf("ListOrder find error: %w", err)
 	}
 
 	return list, total, nil

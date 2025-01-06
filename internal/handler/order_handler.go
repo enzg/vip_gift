@@ -79,8 +79,10 @@ func (h *OrderHandler) GetOneOrder(c *fiber.Ctx) error {
 // -------------------------------------------------------------------
 func (h *OrderHandler) ListOrders(c *fiber.Ctx) error {
 	var req struct {
-		Page int64 `json:"page"`
-		Size int64 `json:"size"`
+		Page               int64    `json:"page"`
+		Size               int64    `json:"size"`
+		OrderIds           []string `json:"orderIds,omitempty"`           // 可选
+		DownstreamOrderIds []string `json:"downstreamOrderIds,omitempty"` // 可选
 	}
 	if err := c.BodyParser(&req); err != nil {
 		return ErrorJSON(c, 400, err.Error())
@@ -92,7 +94,7 @@ func (h *OrderHandler) ListOrders(c *fiber.Ctx) error {
 		req.Size = 10
 	}
 
-	items, total, err := h.svc.ListOrder(context.Background(), req.Page, req.Size)
+	items, total, err := h.svc.ListOrder(context.Background(), req.Page, req.Size, req.OrderIds, req.DownstreamOrderIds)
 	if err != nil {
 		return ErrorJSON(c, 500, err.Error())
 	}

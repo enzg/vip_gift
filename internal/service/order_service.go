@@ -26,7 +26,8 @@ type OrderService interface {
 	GetOrder(ctx context.Context, orderId string) (*types.OrderDTO, error)
 
 	// ListOrder 分页获取订单列表
-	ListOrder(ctx context.Context, page, size int64) ([]types.OrderDTO, int64, error)
+	// ListOrder(ctx context.Context, page, size int64) ([]types.OrderDTO, int64, error)
+	ListOrder(ctx context.Context, page, size int64, orderIds, downstreamIds []string) ([]types.OrderDTO, int64, error)
 }
 
 // orderServiceImpl
@@ -128,8 +129,24 @@ func (s *orderServiceImpl) GetOrder(ctx context.Context, orderId string) (*types
 // -------------------------------------------------------------------
 // 4) ListOrder: 分页获取订单列表
 // -------------------------------------------------------------------
-func (s *orderServiceImpl) ListOrder(ctx context.Context, page, size int64) ([]types.OrderDTO, int64, error) {
-	ents, total, err := s.repo.ListOrder(page, size)
+// func (s *orderServiceImpl) ListOrder(ctx context.Context, page, size int64) ([]types.OrderDTO, int64, error) {
+// 	ents, total, err := s.repo.ListOrder(page, size)
+// 	if err != nil {
+// 		return nil, 0, err
+// 	}
+// 	dtos := make([]types.OrderDTO, len(ents))
+// 	for i, e := range ents {
+// 		dtos[i] = types.OrderDTO{
+// 			OrderId:           e.OrderId,
+// 			DownstreamOrderId: e.DownstreamOrderId,
+// 			DataJSON:          e.DataJSON,
+// 			Status:            e.Status,
+// 		}
+// 	}
+// 	return dtos, total, nil
+// }
+func (s *orderServiceImpl) ListOrder(ctx context.Context, page, size int64, orderIds, downstreamIds []string) ([]types.OrderDTO, int64, error) {
+	ents, total, err := s.repo.ListOrder(page, size, orderIds, downstreamIds)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -144,7 +161,6 @@ func (s *orderServiceImpl) ListOrder(ctx context.Context, page, size int64) ([]t
 	}
 	return dtos, total, nil
 }
-
 // 如需 ES,可加 indexToES, etc
 func generateRandom() int64 {
 	return 100000 // demo
