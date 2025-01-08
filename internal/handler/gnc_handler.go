@@ -3,6 +3,7 @@ package handler
 
 import (
 	"strconv"
+	"strings"
 
 	"10000hk.com/vip_gift/internal/service"
 	"10000hk.com/vip_gift/internal/types"
@@ -101,7 +102,8 @@ func (h *GncHandler) SyncGncRemote(c *fiber.Ctx) error {
 	// 也可以让前端传 pageSize
 	pageSize := 10
 	remoteURL := "https://api0.10000hk.com/api/product/gift/public/list"
-	tempToken := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzYxNDE3ODAsImlhdCI6MTczNTUzNjk4MCwiand0SGFzaCI6ImhLRExjd3NHLzFaN0JmSHgvQWlQNUE9PSIsInVzZXJTbiI6Inh6TUZXQ2dHMGdTbUNZRWVRU1dKT2pVdXJmM2JMdHpQa0YzTXpleEw3NjAifQ.bknLYTIr7O58-K21UwcpuDbvga8H0SaHNhrqtYscEJQ"
+	tempToken := strings.TrimSpace(strings.TrimPrefix(c.Get("Authorization"), "Bearer "))
+	//"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzYxNDE3ODAsImlhdCI6MTczNTUzNjk4MCwiand0SGFzaCI6ImhLRExjd3NHLzFaN0JmSHgvQWlQNUE9PSIsInVzZXJTbiI6Inh6TUZXQ2dHMGdTbUNZRWVRU1dKT2pVdXJmM2JMdHpQa0YzTXpleEw3NjAifQ.bknLYTIr7O58-K21UwcpuDbvga8H0SaHNhrqtYscEJQ"
 
 	// 调用 service
 	if err := h.svc.SyncFromRemote(remoteURL, pageSize, tempToken); err != nil {
