@@ -23,7 +23,7 @@ func (h *OrderHandler) RegisterRoutes(r fiber.Router) {
 	// 需要 JWT 保护可在外层 r.Use(JWTMiddleware(...))
 
 	// 1) 创建订单: POST /orders
-	r.Post("/orders", h.CreateOrder)
+	r.Post("/orders/create", h.CreateOrder)
 
 	// 2) 获取单条订单 (改为 POST /orders/one)
 	r.Post("/orders/one", h.GetOneOrder)

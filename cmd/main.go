@@ -13,6 +13,10 @@ import (
 	"10000hk.com/vip_gift/pkg"
 )
 
+var topicOrerCreate = "vip-order-create"
+var kafkaUrl = "localhost:9092"
+var consumerId = "order_consumer_group"
+
 func main() {
 	// 1) 加载环境变量
 	config.LoadEnv()
@@ -42,7 +46,7 @@ func main() {
 
 	// 7) 初始化 Kafka & Snowflake
 	//    从 pkg 包中获取初始化函数
-	kafkaWriter := pkg.InitKafkaWriter("localhost:9092", "order-create") // broker和topic可改
+	kafkaWriter := pkg.InitKafkaWriter(kafkaUrl, topicOrerCreate) // broker和topic可改
 	snowflakeFn := pkg.InitSnowflake(1)
 
 	// 8) Order 模块
@@ -55,10 +59,10 @@ func main() {
 	// 9) 若要在同进程启动消费端:
 	//    初始化消费者, 并启动
 	orderConsumer := mq.NewOrderConsumer(
-		[]string{"localhost:9092"}, // broker list
-		"order-create",             // topic
-		"order_consumer_group",     // group ID
-		orderSvc,                   // 注入同一个 orderSvc
+		[]string{kafkaUrl}, // broker list
+		topicOrerCreate,    // topic
+		consumerId,         // group ID
+		orderSvc,           // 注入同一个 orderSvc
 	)
 	orderConsumer.Start()
 	defer orderConsumer.Stop()
