@@ -82,32 +82,6 @@ func (r *orderRepoImpl) DeleteOrderByOrderId(orderId string) error {
 	return nil
 }
 
-// ListOrder 简易分页列出订单
-// func (r *orderRepoImpl) ListOrder(page, size int64) ([]types.OrderEntity, int64, error) {
-// 	var list []types.OrderEntity
-// 	var total int64
-
-// 	if page <= 0 {
-// 		page = 1
-// 	}
-// 	if size <= 0 {
-// 		size = 10
-// 	}
-
-// 	tx := r.db.Model(&types.OrderEntity{})
-
-// 	// 统计总数
-// 	if err := tx.Count(&total).Error; err != nil {
-// 		return nil, 0, errors.Join(err, errors.New("ListOrder count error"))
-// 	}
-// 	offset := (page - 1) * size
-// 	// 分页查询
-// 	if err := tx.Offset(int(offset)).Limit(int(size)).Order("created_at DESC").Find(&list).Error; err != nil {
-// 		return nil, 0, errors.Join(err, errors.New("ListOrder find error"))
-// 	}
-
-// 	return list, total, nil
-// }
 func (r *orderRepoImpl) ListOrder(page, size int64, orderIds, downstreamIds []string) ([]types.OrderEntity, int64, error) {
 	var list []types.OrderEntity
 	var total int64
