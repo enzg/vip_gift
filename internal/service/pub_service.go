@@ -32,6 +32,7 @@ type PubService interface {
 	SearchByKeyword(keyword string, page, size int64) ([]GroupedItem, int64, error)
 	GetAllCategories() ([]string, error)
 	BatchAddCategoryForPrefix(string, string, string) error
+	GetBaseCodesByPublicCode(publicCode string) ([]string, error)
 }
 
 type pubServiceImpl struct {
@@ -612,6 +613,24 @@ func (s *pubServiceImpl) BatchAddCategoryForPrefix(prefix, category string, tag 
 	log.Printf("已为 %d 个产品追加分类 %q 并同步ES", len(pubs), category)
 	return nil
 }
+
+func (s *pubServiceImpl) GetBaseCodesByPublicCode(publicCode string) ([]string, error) {
+	// 1) 通过 Repo 获取 pubEntity
+	ent, err := s.repo.GetPubByPublicCode(publicCode)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2) 遍历 ent.Compositions，收集 comp.BaseCode
+	var baseCodes []string
+	for _, comp := range ent.Compositions {
+		baseCodes = append(baseCodes, comp.BaseCode)
+	}
+
+	// 3) 返回 baseCodes 列表
+	return baseCodes, nil
+}
+
 func floatValue(v interface{}) float64 {
 	if v == nil {
 		return 0.0

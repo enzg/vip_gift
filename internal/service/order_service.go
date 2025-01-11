@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm"
 
 	"10000hk.com/vip_gift/internal/repository"
+	"10000hk.com/vip_gift/internal/sink"
 	"10000hk.com/vip_gift/internal/types"
 )
 
@@ -29,6 +30,8 @@ type OrderService interface {
 	// ListOrder 分页获取订单列表
 	// ListOrder(ctx context.Context, page, size int64) ([]types.OrderDTO, int64, error)
 	ListOrder(ctx context.Context, page, size int64, orderIds, downstreamIds []string) ([]types.OrderDTO, int64, error)
+
+	ToOrderDto(ctx context.Context, ent sink.OrderCreateReq) (types.OrderDTO, error)
 }
 
 // orderServiceImpl
@@ -189,6 +192,27 @@ func (s *orderServiceImpl) ListOrder(ctx context.Context, page, size int64, orde
 		}
 	}
 	return dtos, total, nil
+}
+
+func (s *orderServiceImpl) ToOrderDto(ctx context.Context, ent sink.OrderCreateReq) (types.OrderDTO, error) {
+	var downstreamOrderId string = ent.DownstreamOrderId
+	if downstreamOrderId == "" {
+		generatedDsId := fmt.Sprintf("TL-%d", generateRandom()) // 你可以用 Snowflake 等更好的生成
+		downstreamOrderId = generatedDsId
+		log.Printf("[ToOrderDto] No downstreamOrderId provided, generated one: %s\n", generatedDsId)
+	}
+	packReq := sink.BizDataJSON{
+		Body:  ent,
+		Extra: ent.DataJSON,
+	}
+	bizReqJSON, _ := json.Marshal(packReq)
+	dto := types.OrderDTO{
+		DownstreamOrderId: downstreamOrderId,
+		DataJSON:          string(bizReqJSON),
+		Status:            0,
+		Remark:            "",
+	}
+	return dto, nil
 }
 
 // 如需 ES,可加 indexToES, etc

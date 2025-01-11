@@ -8,6 +8,7 @@ import (
 	"10000hk.com/vip_gift/config"
 	"10000hk.com/vip_gift/internal/handler"
 	"10000hk.com/vip_gift/internal/mq" // 新增: 引入消费者
+	"10000hk.com/vip_gift/internal/proxy"
 	"10000hk.com/vip_gift/internal/repository"
 	"10000hk.com/vip_gift/internal/service"
 	"10000hk.com/vip_gift/pkg"
@@ -48,6 +49,7 @@ func main() {
 	//    从 pkg 包中获取初始化函数
 	kafkaWriter := pkg.InitKafkaWriter(kafkaUrl, topicOrerCreate) // broker和topic可改
 	snowflakeFn := pkg.InitSnowflake(1)
+	orderApi := proxy.NewOrderApi("https://api0.10000hk.com/api/product/gift/customer/orders", pubSvc)
 
 	// 8) Order 模块
 	orderRepo := repository.NewOrderRepo(db)
@@ -63,6 +65,7 @@ func main() {
 		topicOrerCreate,    // topic
 		consumerId,         // group ID
 		orderSvc,           // 注入同一个 orderSvc
+		orderApi,
 	)
 	orderConsumer.Start()
 	defer orderConsumer.Stop()

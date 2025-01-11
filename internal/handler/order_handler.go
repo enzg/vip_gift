@@ -6,8 +6,6 @@ import (
 
 	"10000hk.com/vip_gift/internal/service"
 	"10000hk.com/vip_gift/internal/sink"
-	"10000hk.com/vip_gift/internal/types"
-	"10000hk.com/vip_gift/pkg"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -43,27 +41,14 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return ErrorJSON(c, http.StatusBadRequest, err.Error())
 	}
+	// 0)
 
 	// 1) 把 req 转成内部的 OrderDTO
-	//    其中 phone/publicCode/otac 你若想存进 DB，可拼到 dataJSON 或另想办法
-	//    这里演示“把 phone、publicCode、otac”拼到 DataJSON 的 JSON 里。
-	extraMap := map[string]interface{}{
-		"phone":      req.Phone,
-		"publicCode": req.PublicCode,
-		"otac":       req.Otac,
-	}
-	finalDataJSON := pkg.MergeJSON(req.DataJSON, extraMap)
-	// mergeJSON 是我们要写的一个小工具函数，见下方示例
 
-	dto := &types.OrderDTO{
-		DownstreamOrderId: req.DownstreamOrderId,
-		DataJSON:          finalDataJSON, // 合并好的JSON
-		Status:            0,             // 初始状态
-		Remark:            "",            // 备注可空
-	}
+	dto, _ := h.svc.ToOrderDto(context.Background(), req)
 
 	// 2) 调用 service.CreateOrder
-	out, err := h.svc.CreateOrder(context.Background(), dto)
+	out, err := h.svc.CreateOrder(context.Background(), &dto)
 	if err != nil {
 		return ErrorJSON(c, http.StatusInternalServerError, err.Error())
 	}

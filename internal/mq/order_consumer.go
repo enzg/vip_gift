@@ -26,10 +26,11 @@ type OrderConsumer struct {
 	reader       *kafka.Reader
 	stopCh       chan struct{}
 	orderService service.OrderService // 注入订单服务
+	orderApi     types.OrderApi
 }
 
 // NewOrderConsumer 初始化消费者
-func NewOrderConsumer(brokers []string, topic, groupID string, orderSvc service.OrderService) *OrderConsumer {
+func NewOrderConsumer(brokers []string, topic, groupID string, orderSvc service.OrderService, orderApi types.OrderApi) *OrderConsumer {
 	r := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:  brokers,
 		GroupID:  groupID, // 消费者组
@@ -43,6 +44,7 @@ func NewOrderConsumer(brokers []string, topic, groupID string, orderSvc service.
 		reader:       r,
 		stopCh:       make(chan struct{}),
 		orderService: orderSvc,
+		orderApi:     orderApi,
 	}
 }
 
@@ -105,6 +107,7 @@ func (o *OrderConsumer) handleOrder(msg OrderMessage) {
 		DownstreamOrderId: msg.DownstreamOrderId,
 		DataJSON:          msg.DataJSON,
 		Status:            msg.Status,
+		Remark:            "", // 可以根据需要设置. 创建时默认为空
 	}
 
 	// 2) 写DB
@@ -112,7 +115,17 @@ func (o *OrderConsumer) handleOrder(msg OrderMessage) {
 		log.Printf("[OrderConsumer] store to DB error: %v\n", err)
 		return
 	}
-
 	// 3) 进一步逻辑: e.g. 通知, 回调, 更新状态...
 	fmt.Printf("[OrderConsumer] order %s has been inserted into DB.\n", msg.OrderId)
+
+	orderCreateResp, err := o.orderApi.DoCreateOrder(context.Background(), dto)
+	if err != nil {
+		log.Printf("[OrderConsumer] DoCreateOrder error: %v\n", err)
+		dto.Status = 500
+		dto.Remark = fmt.Sprintf("DoCreateOrder error: %v", err)
+		_ = o.orderService.StoreToDB(context.Background(), dto)
+		return
+	}
+	log.Printf("[OrderConsumer] DoCreateOrder resp: %+v\n", orderCreateResp)
+
 }

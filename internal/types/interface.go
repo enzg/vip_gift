@@ -1,13 +1,19 @@
 // internal/types/interface.go
 package types
+
+import (
+	"context"
+
+	"10000hk.com/vip_gift/internal/sink"
+)
+
 // GiftSearchable focuses on ES indexing fields
 type GiftSearchable interface {
-    GetESID() string          // ES doc ID
-    GetESName() string        // name for searching
-    GetESCategories() []string
-    // optionally: GetESDescription(), etc.
+	GetESID() string   // ES doc ID
+	GetESName() string // name for searching
+	GetESCategories() []string
+	// optionally: GetESDescription(), etc.
 }
-
 
 // GiftBase 接口，描述最基础的权益品信息
 type GiftBase interface {
@@ -54,4 +60,13 @@ type GiftOrder interface {
 	// 如果需要，可以继续加更多方法:
 	// GetCreatedAt() time.Time
 	// GetUpdatedAt() time.Time
+}
+
+type OrderApi interface {
+	// DoSendSms - 用于向上游发送短信请求
+	DoSendSms(ctx context.Context, phone string, code string) error
+
+	// DoCreateOrder - 用于向上游发送“创建订单”请求
+	// 返回包含对方系统订单ID、状态、信息等(根据上游API响应而定)
+	DoCreateOrder(ctx context.Context, dto *OrderDTO) (*sink.OrderCreateResp, error)
 }
