@@ -103,7 +103,6 @@ func (h *GncHandler) SyncGncRemote(c *fiber.Ctx) error {
 	pageSize := 10
 	remoteURL := "https://api0.10000hk.com/api/product/gift/public/list"
 	tempToken := strings.TrimSpace(strings.TrimPrefix(c.Get("Authorization"), "Bearer "))
-	//"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzYxNDE3ODAsImlhdCI6MTczNTUzNjk4MCwiand0SGFzaCI6ImhLRExjd3NHLzFaN0JmSHgvQWlQNUE9PSIsInVzZXJTbiI6Inh6TUZXQ2dHMGdTbUNZRWVRU1dKT2pVdXJmM2JMdHpQa0YzTXpleEw3NjAifQ.bknLYTIr7O58-K21UwcpuDbvga8H0SaHNhrqtYscEJQ"
 
 	// 调用 service
 	if err := h.svc.SyncFromRemote(remoteURL, pageSize, tempToken); err != nil {

@@ -68,21 +68,21 @@ func (d *PubComposeEntity) GetStrategy() string { return d.Strategy }
 type PubEntity struct {
 	ID uint64 `gorm:"primaryKey;autoIncrement" json:"id"`
 
-	PublicCode   string             `gorm:"column:public_code;size:50;not null;uniqueIndex" json:"publicCode"`
-	Compositions []PubComposeEntity `gorm:"-" json:"compositions"`
-	SalePrice    float64            `gorm:"column:sale_price;not null;default:0"    json:"salePrice"`
-	ParValue     float64            `gorm:"column:par_value;not null;default:0"     json:"parValue"`
-	Cover        string             `gorm:"size:255"          json:"cover"`
-	Desc         string             `gorm:"type:text"         json:"desc"`
-	Pics         []string           `gorm:"-"                 json:"pics"`       // 不直接存库, 或另有处理
-	PicsJSON     string             `gorm:"column:pics_json;type:text" json:"-"` // 内部持久化
-	OriginData   string             `gorm:"type:text"         json:"originData"`
-	Status       int64              `gorm:"not null;default:0" json:"status"` // 1上架,0下架,2其他
-	ProductName  string             `gorm:"column:product_name;size:100;not null"   json:"productName"`
-	Tag             string   `gorm:"column:tag;size:255"      json:"tag"`                  // 直接映射到 DB
-	Categories      []string `gorm:"-"                       json:"categories,omitempty"` // 不直接存表
-	CategoriesJSON  string   `gorm:"column:categories_json;type:text"  json:"-"`          // 用于持久化 JSON
-	Fetched    bool     `gorm:"-" json:"fetched,omitempty"`
+	PublicCode     string             `gorm:"column:public_code;size:50;not null;uniqueIndex" json:"publicCode"`
+	Compositions   []PubComposeEntity `gorm:"-" json:"compositions"`
+	SalePrice      float64            `gorm:"column:sale_price;not null;default:0"    json:"salePrice"`
+	ParValue       float64            `gorm:"column:par_value;not null;default:0"     json:"parValue"`
+	Cover          string             `gorm:"size:255"          json:"cover"`
+	Desc           string             `gorm:"type:text"         json:"desc"`
+	Pics           []string           `gorm:"-"                 json:"pics"`       // 不直接存库, 或另有处理
+	PicsJSON       string             `gorm:"column:pics_json;type:text" json:"-"` // 内部持久化
+	OriginData     string             `gorm:"type:text"         json:"originData"`
+	Status         int64              `gorm:"not null;default:0" json:"status"` // 1上架,0下架,2其他
+	ProductName    string             `gorm:"column:product_name;size:100;not null"   json:"productName"`
+	Tag            string             `gorm:"column:tag;size:255"      json:"tag"`                 // 直接映射到 DB
+	Categories     []string           `gorm:"-"                       json:"categories,omitempty"` // 不直接存表
+	CategoriesJSON string             `gorm:"column:categories_json;type:text"  json:"-"`          // 用于持久化 JSON
+	Fetched        bool               `gorm:"-" json:"fetched,omitempty"`
 }
 
 // 实现 GiftPublic 接口
@@ -108,16 +108,16 @@ func (d *PubEntity) BeforeSave(tx *gorm.DB) (err error) {
 	} else {
 		d.PicsJSON = "[]"
 	}
-		// 2) 序列化 categories => categories_json
-		if d.Categories != nil {
-			b, err := json.Marshal(d.Categories)
-			if err != nil {
-				return err
-			}
-			d.CategoriesJSON = string(b)
-		} else {
-			d.CategoriesJSON = "[]"
+	// 2) 序列化 categories => categories_json
+	if d.Categories != nil {
+		b, err := json.Marshal(d.Categories)
+		if err != nil {
+			return err
 		}
+		d.CategoriesJSON = string(b)
+	} else {
+		d.CategoriesJSON = "[]"
+	}
 	return nil
 }
 
@@ -172,10 +172,12 @@ type OrderEntity struct {
 	DownstreamOrderId string    `gorm:"size:50;uniqueIndex"      json:"downstreamOrderId"` // 外部系统传入的订单ID
 	DataJSON          string    `gorm:"type:text"                json:"dataJSON"`          // 存放订单相关数据
 	Status            int64     `gorm:"not null;default:1"       json:"status"`            // 1=待处理, 2=完成, 3=取消等
-	CreatedAt         time.Time `json:"createdAt"`
-	UpdatedAt         time.Time `json:"updatedAt"`
+	Remark            string    `gorm:"type:text"                json:"remark"`            // <-- 新增字段
+	CreatedAt         time.Time `gorm:"autoCreateTime" json:"createdAt"`
+	UpdatedAt         time.Time `gorm:"autoUpdateTime" json:"updatedAt"`
 }
-func (o OrderEntity) GetOrderId() string { return o.OrderId }
+
+func (o OrderEntity) GetOrderId() string           { return o.OrderId }
 func (o OrderEntity) GetDownstreamOrderId() string { return o.DownstreamOrderId }
-func (o OrderEntity) GetDataJSON() string { return o.DataJSON }
-func (o OrderEntity) GetStatus() int64    { return o.Status }
+func (o OrderEntity) GetDataJSON() string          { return o.DataJSON }
+func (o OrderEntity) GetStatus() int64             { return o.Status }

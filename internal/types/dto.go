@@ -117,6 +117,7 @@ type OrderDTO struct {
 	DataJSON          string `json:"dataJSON"`
 	OrderId           string `json:"orderId"`
 	Status            int64  `json:"status"`
+	Remark            string `json:"remark"` // 新增
 }
 
 func (dto *OrderDTO) FromEntity(ent *OrderEntity) error {

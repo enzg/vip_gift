@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/segmentio/kafka-go"
 	"gorm.io/gorm"
@@ -54,10 +55,14 @@ func NewOrderService(repo repository.OrderRepo, kWriter *kafka.Writer, sfFn func
 // -------------------------------------------------------------------
 func (s *orderServiceImpl) CreateOrder(ctx context.Context, dto *types.OrderDTO) (*types.OrderDTO, error) {
 	if dto.DownstreamOrderId == "" {
-		return nil, fmt.Errorf("downstreamOrderId is required")
+		// return nil, fmt.Errorf("downstreamOrderId is required")
+		generatedDsId := fmt.Sprintf("DS-%d", generateRandom()) // 你可以用 Snowflake 等更好的生成
+		dto.DownstreamOrderId = generatedDsId
+		log.Printf("[CreateOrder] No downstreamOrderId provided, generated one: %s\n", generatedDsId)
 	}
 	if dto.DataJSON == "" {
-		return nil, fmt.Errorf("dataJSON is required")
+		// return nil, fmt.Errorf("dataJSON is required")
+		dto.DataJSON = "{}"
 	}
 
 	// 生成 orderId (snowflake)
@@ -65,7 +70,7 @@ func (s *orderServiceImpl) CreateOrder(ctx context.Context, dto *types.OrderDTO)
 	if s.snowflakeFn != nil {
 		orderId = s.snowflakeFn()
 	} else {
-		orderId = fmt.Sprintf("ORD-%d", generateRandom())
+		orderId = fmt.Sprintf("VP-%d", generateRandom())
 	}
 	dto.OrderId = orderId
 
@@ -91,18 +96,61 @@ func (s *orderServiceImpl) CreateOrder(ctx context.Context, dto *types.OrderDTO)
 // -------------------------------------------------------------------
 func (s *orderServiceImpl) StoreToDB(ctx context.Context, dto *types.OrderDTO) error {
 	if dto.OrderId == "" {
-		return fmt.Errorf("orderId is required for StoreToDB")
+		return fmt.Errorf("StoreToDB: orderId is required")
 	}
-	ent := &types.OrderEntity{
-		OrderId:           dto.OrderId,
-		DownstreamOrderId: dto.DownstreamOrderId,
-		DataJSON:          dto.DataJSON,
-		Status:            dto.Status,
+
+	// 先到 Repo 查一下
+	existing, err := s.repo.GetOrderByOrderId(dto.OrderId)
+	// 注意，目前 GetOrderByOrderId 如果找不到，会返回自定义错误 "订单不存在, orderId=xxx"
+	// 你也可以让它原样返回 gorm.ErrRecordNotFound，以便用 errors.Is 来判断。
+
+	if err != nil {
+		// 若是“订单不存在”类的错误 => 说明尚无记录 => 执行插入
+		if err.Error() != "" &&
+			(strings.Contains(err.Error(), "订单不存在") /* 或者 errors.Is(err, gorm.ErrRecordNotFound) */) {
+			// 插入
+			newEnt := &types.OrderEntity{
+				OrderId:           dto.OrderId,           // 初次创建时可使用
+				DownstreamOrderId: dto.DownstreamOrderId, // 初次创建时可使用
+				DataJSON:          dto.DataJSON,
+				Status:            dto.Status,
+				Remark:            dto.Remark,
+			}
+			if errC := s.repo.CreateOrder(newEnt); errC != nil {
+				return fmt.Errorf("StoreToDB: create error: %w", errC)
+			}
+			log.Printf("[StoreToDB] new order %s inserted.\n", dto.OrderId)
+			return nil
+		}
+		// 如果是其它错误，就直接返回
+		return fmt.Errorf("StoreToDB: unexpected err in GetOrderByOrderId: %w", err)
 	}
-	if err := s.repo.CreateOrder(ent); err != nil {
-		return fmt.Errorf("StoreToDB db error: %w", err)
+
+	// ================
+	// 已存在 => 更新
+	// ================
+	// 确保不允许修改 orderId, downstreamOrderId
+	//   - 如果调用方传的 downstreamOrderId != 现有值，直接报错
+	if dto.DownstreamOrderId != "" && dto.DownstreamOrderId != existing.DownstreamOrderId {
+		return fmt.Errorf("不可修改 downstreamOrderId (existing=%s, got=%s)",
+			existing.DownstreamOrderId, dto.DownstreamOrderId)
 	}
-	log.Printf("[StoreToDB] order %s inserted into DB\n", dto.OrderId)
+	// orderId 一般前端不会改，但可加个防御
+	if dto.OrderId != existing.OrderId {
+		return fmt.Errorf("不可修改 orderId (existing=%s, got=%s)",
+			existing.OrderId, dto.OrderId)
+	}
+
+	// 只更新可变的字段( DataJSON / Status / Remark 等)
+	existing.DataJSON = dto.DataJSON
+	existing.Status = dto.Status
+	existing.Remark = dto.Remark
+
+	if errU := s.repo.UpdateOrder(existing); errU != nil {
+		return fmt.Errorf("StoreToDB: update error: %w", errU)
+	}
+	log.Printf("[StoreToDB] order %s updated in DB\n", dto.OrderId)
+
 	return nil
 }
 
@@ -126,25 +174,6 @@ func (s *orderServiceImpl) GetOrder(ctx context.Context, orderId string) (*types
 	return dto, nil
 }
 
-// -------------------------------------------------------------------
-// 4) ListOrder: 分页获取订单列表
-// -------------------------------------------------------------------
-// func (s *orderServiceImpl) ListOrder(ctx context.Context, page, size int64) ([]types.OrderDTO, int64, error) {
-// 	ents, total, err := s.repo.ListOrder(page, size)
-// 	if err != nil {
-// 		return nil, 0, err
-// 	}
-// 	dtos := make([]types.OrderDTO, len(ents))
-// 	for i, e := range ents {
-// 		dtos[i] = types.OrderDTO{
-// 			OrderId:           e.OrderId,
-// 			DownstreamOrderId: e.DownstreamOrderId,
-// 			DataJSON:          e.DataJSON,
-// 			Status:            e.Status,
-// 		}
-// 	}
-// 	return dtos, total, nil
-// }
 func (s *orderServiceImpl) ListOrder(ctx context.Context, page, size int64, orderIds, downstreamIds []string) ([]types.OrderDTO, int64, error) {
 	ents, total, err := s.repo.ListOrder(page, size, orderIds, downstreamIds)
 	if err != nil {
@@ -161,6 +190,7 @@ func (s *orderServiceImpl) ListOrder(ctx context.Context, page, size int64, orde
 	}
 	return dtos, total, nil
 }
+
 // 如需 ES,可加 indexToES, etc
 func generateRandom() int64 {
 	return 100000 // demo

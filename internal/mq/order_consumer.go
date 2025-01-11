@@ -36,6 +36,7 @@ func NewOrderConsumer(brokers []string, topic, groupID string, orderSvc service.
 		Topic:    topic,
 		MinBytes: 10e3, // 10KB
 		MaxBytes: 10e6, // 10MB
+		MaxWait:  1 * time.Second,
 	})
 
 	return &OrderConsumer{
