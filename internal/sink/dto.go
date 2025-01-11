@@ -22,3 +22,7 @@ type BizDataJSON struct {
 	Body  OrderCreateReq `json:"body"`
 	Extra string         `json:"extra,omitempty"`
 }
+type SmsReq struct {
+	PublicCode string `json:"publicCode"`
+	Phone      string `json:"phone"`
+}

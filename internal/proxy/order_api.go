@@ -31,9 +31,12 @@ func NewOrderApi(upstreamURL string, pubSvc service.PubService) types.OrderApi {
 	}
 }
 
-func (api *orderApiImpl) DoSendSms(ctx context.Context, phone, code string) error {
+func (api *orderApiImpl) DoSendSms(ctx context.Context, req sink.SmsReq) (*sink.OrderCreateResp, error) {
 	// TODO: implement if needed
-	return nil
+	return &sink.OrderCreateResp{}, nil
+}
+func (api *orderApiImpl) ToOrderDto(ctx context.Context, req sink.OrderCreateReq) (types.OrderDTO, error) {
+	return types.OrderDTO{}, nil
 }
 
 func (api *orderApiImpl) DoCreateOrder(ctx context.Context, dto *types.OrderDTO) (*sink.OrderCreateResp, error) {

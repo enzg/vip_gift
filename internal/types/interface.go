@@ -63,9 +63,15 @@ type GiftOrder interface {
 }
 
 type OrderApi interface {
-	// DoSendSms - 用于向上游发送短信请求
-	DoSendSms(ctx context.Context, phone string, code string) error
+	// // DoSendSms - 用于向上游发送短信请求
+	// DoSendSms(ctx context.Context, phone string, code string) error
 
+	// // DoCreateOrder - 用于向上游发送“创建订单”请求
+	// // 返回包含对方系统订单ID、状态、信息等(根据上游API响应而定)
+	// DoCreateOrder(ctx context.Context, dto *OrderDTO) (*sink.OrderCreateResp, error)
+	// DoSendSms - 用于向上游发送短信请求
+	DoSendSms(ctx context.Context, req sink.SmsReq) (*sink.OrderCreateResp, error)
+	ToOrderDto(ctx context.Context, req sink.OrderCreateReq) (OrderDTO, error)
 	// DoCreateOrder - 用于向上游发送“创建订单”请求
 	// 返回包含对方系统订单ID、状态、信息等(根据上游API响应而定)
 	DoCreateOrder(ctx context.Context, dto *OrderDTO) (*sink.OrderCreateResp, error)
