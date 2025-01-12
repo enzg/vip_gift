@@ -28,6 +28,7 @@ func NewOrderApi(upstreamURL string, pubSvc service.PubService) types.OrderApi {
 		httpClient: &http.Client{
 			Timeout: 5 * time.Second,
 		},
+		pub: pubSvc,
 	}
 }
 
