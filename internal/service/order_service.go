@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/segmentio/kafka-go"
 	"gorm.io/gorm"
@@ -197,7 +198,7 @@ func (s *orderServiceImpl) ListOrder(ctx context.Context, page, size int64, orde
 func (s *orderServiceImpl) ToOrderDto(ctx context.Context, ent sink.OrderCreateReq) (types.OrderDTO, error) {
 	var downstreamOrderId string = ent.DownstreamOrderId
 	if downstreamOrderId == "" {
-		generatedDsId := fmt.Sprintf("TL-%d", generateRandom()) // 你可以用 Snowflake 等更好的生成
+		generatedDsId := fmt.Sprintf("VIP-%d", generateRandom()) // 你可以用 Snowflake 等更好的生成
 		downstreamOrderId = generatedDsId
 		log.Printf("[ToOrderDto] No downstreamOrderId provided, generated one: %s\n", generatedDsId)
 	}
@@ -217,5 +218,5 @@ func (s *orderServiceImpl) ToOrderDto(ctx context.Context, ent sink.OrderCreateR
 
 // 如需 ES,可加 indexToES, etc
 func generateRandom() int64 {
-	return 100000 // demo
+	return 100000 + time.Now().UnixNano()%100000
 }
