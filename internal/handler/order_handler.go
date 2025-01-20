@@ -143,6 +143,15 @@ func (h *OrderHandler) QueryOrders(c *fiber.Ctx) error {
 	if err != nil {
 		return SuccessJSON(c, orderResults)
 	}
+	// 调用本节点自己的orderService查询 GetOrderByDownstreamOrderId 方法 更新orderResults里面的orderId
+	for i := range orderResults {
+		orderResult := &orderResults[i]
+		order, err := h.svc.GetOrderByDownstreamOrderId(context.Background(), orderResult.DownstreamOrderId)
+		if err != nil {
+			continue
+		}
+		orderResult.OrderId = order.GetOrderId()
+	}
 
 	// 统一返回所有订单的查询结果
 	return SuccessJSON(c, orderResults)

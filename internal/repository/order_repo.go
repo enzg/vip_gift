@@ -16,6 +16,8 @@ type OrderRepo interface {
 
 	// GetOrderByOrderId 根据内部OrderId查询
 	GetOrderByOrderId(orderId string) (*types.OrderEntity, error)
+	// 新增方法：通过 downstreamOrderId 查找订单
+	GetOrderByDownstreamOrderId(downstreamOrderId string) (*types.OrderEntity, error)
 
 	// UpdateOrder 更新订单
 	UpdateOrder(ent *types.OrderEntity) error
@@ -56,6 +58,18 @@ func (r *orderRepoImpl) GetOrderByOrderId(orderId string) (*types.OrderEntity, e
 			return nil, fmt.Errorf("订单不存在, orderId=%s", orderId)
 		}
 		return nil, errors.Join(err, errors.New("GetOrderByOrderId db error"))
+	}
+	return &order, nil
+}
+
+// 通过 downstreamOrderId 查找订单
+func (r *orderRepoImpl) GetOrderByDownstreamOrderId(downstreamOrderId string) (*types.OrderEntity, error) {
+	var order types.OrderEntity
+	if err := r.db.Where("downstream_order_id = ?", downstreamOrderId).First(&order).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("订单不存在, downstreamOrderId=%s", downstreamOrderId)
+		}
+		return nil, errors.Join(err, errors.New("GetOrderByDownstreamOrderId db error"))
 	}
 	return &order, nil
 }

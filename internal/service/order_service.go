@@ -28,6 +28,8 @@ type OrderService interface {
 	// GetOrder 根据orderId查询订单
 	GetOrder(ctx context.Context, orderId string) (*types.OrderDTO, error)
 
+	GetOrderByDownstreamOrderId(ctx context.Context, downstreamOrderId string) (*types.OrderEntity, error)
+
 	// ListOrder 分页获取订单列表
 	// ListOrder(ctx context.Context, page, size int64) ([]types.OrderDTO, int64, error)
 	ListOrder(ctx context.Context, page, size int64, orderIds, downstreamIds []string) ([]types.OrderDTO, int64, error)
@@ -214,6 +216,16 @@ func (s *orderServiceImpl) ToOrderDto(ctx context.Context, ent sink.OrderCreateR
 		Remark:            "",
 	}
 	return dto, nil
+}
+
+// OrderService 中新增的方法
+func (s *orderServiceImpl) GetOrderByDownstreamOrderId(ctx context.Context, downstreamOrderId string) (*types.OrderEntity, error) {
+	var order *types.OrderEntity
+	order, err := s.repo.GetOrderByDownstreamOrderId(downstreamOrderId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find order: %w", err)
+	}
+	return order, nil
 }
 
 // 如需 ES,可加 indexToES, etc
