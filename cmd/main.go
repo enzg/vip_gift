@@ -8,7 +8,6 @@ import (
 	"10000hk.com/vip_gift/config"
 	"10000hk.com/vip_gift/internal/handler"
 	"10000hk.com/vip_gift/internal/mq" // 新增: 引入消费者
-	"10000hk.com/vip_gift/internal/proxy"
 	"10000hk.com/vip_gift/internal/repository"
 	"10000hk.com/vip_gift/internal/service"
 	"10000hk.com/vip_gift/pkg"
@@ -49,16 +48,16 @@ func main() {
 	//    从 pkg 包中获取初始化函数
 	kafkaWriter := pkg.InitKafkaWriter(kafkaUrl, topicOrerCreate) // broker和topic可改
 	snowflakeFn := pkg.InitSnowflake(1)
-	orderApi := proxy.NewOrderApi(map[string]string{
-		"CreateOrder": "https://api0.10000hk.com/api/product/gift/customer/orders/create",
-		"QueryOrder":  "https://api0.10000hk.com/api/product/gift/orders/query",
-	}, pubSvc)
+	// orderApi := proxy.NewOrderApi(map[string]string{
+	// 	"CreateOrder": "https://api0.10000hk.com/api/product/gift/customer/orders/create",
+	// 	"QueryOrder":  "https://api0.10000hk.com/api/product/gift/orders/query",
+	// }, pubSvc)
 
 	// 8) Order 模块
 	orderRepo := repository.NewOrderRepo(db)
 	// 这里的 orderSvc 是“只发Kafka” or “先插DB再发Kafka”，取决于order_service.go的模式
 	orderSvc := service.NewOrderService(orderRepo, kafkaWriter, snowflakeFn /*, esClient*/)
-	orderHdl := handler.NewOrderHandler(orderSvc, orderApi)
+	orderHdl := handler.NewOrderHandler(orderSvc, pubSvc)
 	orderHdl.RegisterRoutes(api) // POST /orders, GET /orders/:orderId
 
 	// 9) 若要在同进程启动消费端:
@@ -68,7 +67,8 @@ func main() {
 		topicOrerCreate,    // topic
 		consumerId,         // group ID
 		orderSvc,           // 注入同一个 orderSvc
-		orderApi,
+		pubSvc,
+		// orderApi,
 	)
 	orderConsumer.Start()
 	defer orderConsumer.Stop()

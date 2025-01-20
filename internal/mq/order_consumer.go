@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/segmentio/kafka-go"
 
+	"10000hk.com/vip_gift/internal/proxy"
 	"10000hk.com/vip_gift/internal/service"
 	"10000hk.com/vip_gift/internal/types"
 )
@@ -26,11 +28,12 @@ type OrderConsumer struct {
 	reader       *kafka.Reader
 	stopCh       chan struct{}
 	orderService service.OrderService // 注入订单服务
-	orderApi     types.OrderApi
+	pub          service.PubService
+	// orderApi     types.OrderApi
 }
 
 // NewOrderConsumer 初始化消费者
-func NewOrderConsumer(brokers []string, topic, groupID string, orderSvc service.OrderService, orderApi types.OrderApi) *OrderConsumer {
+func NewOrderConsumer(brokers []string, topic, groupID string, orderSvc service.OrderService, pubSvc service.PubService /*, orderApi types.OrderApi*/) *OrderConsumer {
 	r := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:  brokers,
 		GroupID:  groupID, // 消费者组
@@ -44,7 +47,8 @@ func NewOrderConsumer(brokers []string, topic, groupID string, orderSvc service.
 		reader:       r,
 		stopCh:       make(chan struct{}),
 		orderService: orderSvc,
-		orderApi:     orderApi,
+		pub:          pubSvc,
+		// orderApi:     orderApi,
 	}
 }
 
@@ -117,8 +121,23 @@ func (o *OrderConsumer) handleOrder(msg OrderMessage) {
 	}
 	// 3) 进一步逻辑: e.g. 通知, 回调, 更新状态...
 	fmt.Printf("[OrderConsumer] order %s has been inserted into DB.\n", msg.OrderId)
+	var orderApi types.OrderApi
+	switch {
+	case strings.Contains(msg.DownstreamOrderId, "VV"):
+		orderApi = proxy.NewGiftApi(map[string]string{
+			"CreateOrder": "https://api0.10000hk.com/api/product/gift/customer/orders/create",
+			"QueryOrder":  "https://api0.10000hk.com/api/product/gift/orders/query",
+		}, o.pub)
+	case strings.Contains(msg.DownstreamOrderId, "VC"):
+		orderApi = proxy.NewChargeApi(map[string]string{
+			"CreateOrder": "https://gift.10000hk.com/api/charge/order/recharge",
+		})
+	default:
+		log.Printf("[OrderConsumer] unknown downstreamOrderId: %s\n", msg.DownstreamOrderId)
+		return
+	}
 
-	orderCreateResp, err := o.orderApi.DoCreateOrder(context.Background(), dto)
+	orderCreateResp, err := orderApi.DoCreateOrder(context.Background(), dto)
 	if err != nil {
 		log.Printf("[OrderConsumer] DoCreateOrder error: %v\n", err)
 		dto.Status = 500

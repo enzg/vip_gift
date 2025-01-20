@@ -13,7 +13,6 @@ import (
 	"gorm.io/gorm"
 
 	"10000hk.com/vip_gift/internal/repository"
-	"10000hk.com/vip_gift/internal/sink"
 	"10000hk.com/vip_gift/internal/types"
 )
 
@@ -34,7 +33,7 @@ type OrderService interface {
 	// ListOrder(ctx context.Context, page, size int64) ([]types.OrderDTO, int64, error)
 	ListOrder(ctx context.Context, page, size int64, orderIds, downstreamIds []string) ([]types.OrderDTO, int64, error)
 
-	ToOrderDto(ctx context.Context, ent sink.OrderCreateReq) (types.OrderDTO, error)
+	// ToOrderDto(ctx context.Context, ent sink.OrderCreateReq) (types.OrderDTO, error)
 }
 
 // orderServiceImpl
@@ -61,10 +60,10 @@ func NewOrderService(repo repository.OrderRepo, kWriter *kafka.Writer, sfFn func
 // -------------------------------------------------------------------
 func (s *orderServiceImpl) CreateOrder(ctx context.Context, dto *types.OrderDTO) (*types.OrderDTO, error) {
 	if dto.DownstreamOrderId == "" {
-		// return nil, fmt.Errorf("downstreamOrderId is required")
-		generatedDsId := fmt.Sprintf("DS-%d", generateRandom()) // 你可以用 Snowflake 等更好的生成
-		dto.DownstreamOrderId = generatedDsId
-		log.Printf("[CreateOrder] No downstreamOrderId provided, generated one: %s\n", generatedDsId)
+		return nil, fmt.Errorf("[vip order-service] downstreamOrderId is required")
+		// generatedDsId := fmt.Sprintf("DS-%d", generateRandom()) // 你可以用 Snowflake 等更好的生成
+		// dto.DownstreamOrderId = generatedDsId
+		// log.Printf("[CreateOrder] No downstreamOrderId provided, generated one: %s\n", generatedDsId)
 	}
 	if dto.DataJSON == "" {
 		// return nil, fmt.Errorf("dataJSON is required")
@@ -76,7 +75,7 @@ func (s *orderServiceImpl) CreateOrder(ctx context.Context, dto *types.OrderDTO)
 	if s.snowflakeFn != nil {
 		orderId = s.snowflakeFn()
 	} else {
-		orderId = fmt.Sprintf("VP-%d", generateRandom())
+		orderId = fmt.Sprintf("VIP-%d", generateRandom())
 	}
 	dto.OrderId = orderId
 
@@ -197,26 +196,27 @@ func (s *orderServiceImpl) ListOrder(ctx context.Context, page, size int64, orde
 	return dtos, total, nil
 }
 
-func (s *orderServiceImpl) ToOrderDto(ctx context.Context, ent sink.OrderCreateReq) (types.OrderDTO, error) {
-	var downstreamOrderId string = ent.DownstreamOrderId
-	if downstreamOrderId == "" {
-		generatedDsId := fmt.Sprintf("VIP-%d", generateRandom()) // 你可以用 Snowflake 等更好的生成
-		downstreamOrderId = generatedDsId
-		log.Printf("[ToOrderDto] No downstreamOrderId provided, generated one: %s\n", generatedDsId)
-	}
-	packReq := sink.BizDataJSON{
-		Body:  ent,
-		Extra: ent.DataJSON,
-	}
-	bizReqJSON, _ := json.Marshal(packReq)
-	dto := types.OrderDTO{
-		DownstreamOrderId: downstreamOrderId,
-		DataJSON:          string(bizReqJSON),
-		Status:            0,
-		Remark:            "",
-	}
-	return dto, nil
-}
+// func (s *orderServiceImpl) ToOrderDto(ctx context.Context, ent sink.OrderCreateReq) (types.OrderDTO, error) {
+// 	var downstreamOrderId string = ent.DownstreamOrderId
+// 	if downstreamOrderId == "" {
+// 		return types.OrderDTO{}, fmt.Errorf("ToOrderDto: downstreamOrderId is required")
+// 		// generatedDsId := fmt.Sprintf("VIP-%d", generateRandom()) // 你可以用 Snowflake 等更好的生成
+// 		// downstreamOrderId = generatedDsId
+// 		// log.Printf("[ToOrderDto] No downstreamOrderId provided, generated one: %s\n", generatedDsId)
+// 	}
+// 	packReq := sink.BizDataJSON{
+// 		Body:  ent,
+// 		Extra: ent.DataJSON,
+// 	}
+// 	bizReqJSON, _ := json.Marshal(packReq)
+// 	dto := types.OrderDTO{
+// 		DownstreamOrderId: downstreamOrderId,
+// 		DataJSON:          string(bizReqJSON),
+// 		Status:            0,
+// 		Remark:            "",
+// 	}
+// 	return dto, nil
+// }
 
 // OrderService 中新增的方法
 func (s *orderServiceImpl) GetOrderByDownstreamOrderId(ctx context.Context, downstreamOrderId string) (*types.OrderEntity, error) {

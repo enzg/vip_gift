@@ -16,14 +16,14 @@ import (
 	"10000hk.com/vip_gift/internal/types"
 )
 
-type orderApiImpl struct {
+type giftApiImpl struct {
 	upstreamURL map[string]string
 	pub         service.PubService
 	httpClient  *http.Client
 }
 
-func NewOrderApi(upstreamURL map[string]string, pubSvc service.PubService) types.OrderApi {
-	return &orderApiImpl{
+func NewGiftApi(upstreamURL map[string]string, pubSvc service.PubService) types.OrderApi {
+	return &giftApiImpl{
 		upstreamURL: upstreamURL,
 		httpClient: &http.Client{
 			Timeout: 5 * time.Second,
@@ -32,17 +32,35 @@ func NewOrderApi(upstreamURL map[string]string, pubSvc service.PubService) types
 	}
 }
 
-func (api *orderApiImpl) DoSendSms(ctx context.Context, req sink.SmsReq) (*sink.OrderCreateResp, error) {
+func (api *giftApiImpl) DoSendSms(ctx context.Context, req sink.SmsReq) (*sink.OrderCreateResp, error) {
 	// TODO: implement if needed
 	return &sink.OrderCreateResp{}, nil
 }
-func (api *orderApiImpl) ToOrderDto(ctx context.Context, req sink.OrderCreateReq) (types.OrderDTO, error) {
-	return types.OrderDTO{}, nil
+func (api *giftApiImpl) ToOrderDto(ctx context.Context, ent sink.OrderCreateReq) (types.OrderDTO, error) {
+	var downstreamOrderId string = ent.DownstreamOrderId
+	if downstreamOrderId == "" {
+		return types.OrderDTO{}, fmt.Errorf("ToOrderDto: downstreamOrderId is required")
+		// generatedDsId := fmt.Sprintf("VIP-%d", generateRandom()) // 你可以用 Snowflake 等更好的生成
+		// downstreamOrderId = generatedDsId
+		// log.Printf("[ToOrderDto] No downstreamOrderId provided, generated one: %s\n", generatedDsId)
+	}
+	packReq := sink.BizDataJSON[sink.OrderCreateReq]{
+		Body:  ent,
+		Extra: ent.DataJSON,
+	}
+	bizReqJSON, _ := json.Marshal(packReq)
+	dto := types.OrderDTO{
+		DownstreamOrderId: downstreamOrderId,
+		DataJSON:          string(bizReqJSON),
+		Status:            0,
+		Remark:            "",
+	}
+	return dto, nil
 }
 
-func (api *orderApiImpl) DoCreateOrder(ctx context.Context, dto *types.OrderDTO) (*sink.OrderCreateResp, error) {
+func (api *giftApiImpl) DoCreateOrder(ctx context.Context, dto *types.OrderDTO) (*sink.OrderCreateResp, error) {
 	// 构造请求体
-	var bizReq sink.BizDataJSON
+	var bizReq sink.BizDataJSON[sink.OrderCreateReq]
 	err := json.Unmarshal([]byte(dto.DataJSON), &bizReq)
 	if err != nil {
 		return nil, err
@@ -89,7 +107,7 @@ func (api *orderApiImpl) DoCreateOrder(ctx context.Context, dto *types.OrderDTO)
 	// 发送请求
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, api.upstreamURL["CreateOrder"], bytes.NewBuffer(reqBytes))
 	if err != nil {
-		return nil, fmt.Errorf("[orderApi.DoCreateOrder] http.NewRequestWithContext error: %w", err)
+		return nil, fmt.Errorf("[giftApi.DoCreateOrder] http.NewRequestWithContext error: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -110,7 +128,7 @@ func (api *orderApiImpl) DoCreateOrder(ctx context.Context, dto *types.OrderDTO)
 	}
 	return &createResp, nil
 }
-func (api *orderApiImpl) DoQueryOrder(ctx context.Context, ids []string) ([]sink.OrderQueryResp, error) {
+func (api *giftApiImpl) DoQueryOrder(ctx context.Context, ids []string) ([]sink.OrderQueryResp, error) {
 	// 2) 根据解析到的信息，准备查询参数。这里假设 Fulu 的查询接口需要 productId、customerOrderNo 等
 	//   - 你可以根据实际的第三方接口做调整
 	queryParam := map[string][]string{
