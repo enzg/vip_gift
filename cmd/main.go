@@ -49,13 +49,16 @@ func main() {
 	//    从 pkg 包中获取初始化函数
 	kafkaWriter := pkg.InitKafkaWriter(kafkaUrl, topicOrerCreate) // broker和topic可改
 	snowflakeFn := pkg.InitSnowflake(1)
-	orderApi := proxy.NewOrderApi("https://api0.10000hk.com/api/product/gift/customer/orders", pubSvc)
+	orderApi := proxy.NewOrderApi(map[string]string{
+		"CreateOrder": "https://api0.10000hk.com/api/product/gift/customer/orders/create",
+		"QueryOrder":  "https://api0.10000hk.com/api/product/gift/orders/query",
+	}, pubSvc)
 
 	// 8) Order 模块
 	orderRepo := repository.NewOrderRepo(db)
 	// 这里的 orderSvc 是“只发Kafka” or “先插DB再发Kafka”，取决于order_service.go的模式
 	orderSvc := service.NewOrderService(orderRepo, kafkaWriter, snowflakeFn /*, esClient*/)
-	orderHdl := handler.NewOrderHandler(orderSvc)
+	orderHdl := handler.NewOrderHandler(orderSvc, orderApi)
 	orderHdl.RegisterRoutes(api) // POST /orders, GET /orders/:orderId
 
 	// 9) 若要在同进程启动消费端:

@@ -6,17 +6,19 @@ import (
 
 	"10000hk.com/vip_gift/internal/service"
 	"10000hk.com/vip_gift/internal/sink"
+	"10000hk.com/vip_gift/internal/types"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 type OrderHandler struct {
 	svc service.OrderService
+	api types.OrderApi
 }
 
 // NewOrderHandler 构造函数
-func NewOrderHandler(svc service.OrderService) *OrderHandler {
-	return &OrderHandler{svc: svc}
+func NewOrderHandler(svc service.OrderService, api types.OrderApi) *OrderHandler {
+	return &OrderHandler{svc: svc, api: api}
 }
 
 // RegisterRoutes 注册路由
@@ -30,6 +32,8 @@ func (h *OrderHandler) RegisterRoutes(r fiber.Router) {
 
 	// 3) 分页查看订单列表: POST /orders/list
 	r.Post("/orders/list", h.ListOrders)
+
+	r.Post("/orders/query", h.QueryOrders)
 }
 
 // -------------------------------------------------------------------
@@ -118,4 +122,28 @@ func (h *OrderHandler) ListOrders(c *fiber.Ctx) error {
 		"dataList": items,
 	}
 	return SuccessJSON(c, resp)
+}
+
+// QueryOrders 转发订单查询请求
+func (h *OrderHandler) QueryOrders(c *fiber.Ctx) error {
+	var req struct {
+		OrderIds []string `json:"orderIds"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return ErrorJSON(c, 400, err.Error())
+	}
+
+	if len(req.OrderIds) == 0 {
+		return ErrorJSON(c, 400, "orderIds is required")
+	}
+
+	var orderResults []sink.OrderQueryResp
+
+	orderResults, err := h.api.DoQueryOrder(context.Background(), req.OrderIds)
+	if err != nil {
+		return SuccessJSON(c, orderResults)
+	}
+
+	// 统一返回所有订单的查询结果
+	return SuccessJSON(c, orderResults)
 }

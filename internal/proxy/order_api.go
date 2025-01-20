@@ -17,12 +17,12 @@ import (
 )
 
 type orderApiImpl struct {
-	upstreamURL string
+	upstreamURL map[string]string
 	pub         service.PubService
 	httpClient  *http.Client
 }
 
-func NewOrderApi(upstreamURL string, pubSvc service.PubService) types.OrderApi {
+func NewOrderApi(upstreamURL map[string]string, pubSvc service.PubService) types.OrderApi {
 	return &orderApiImpl{
 		upstreamURL: upstreamURL,
 		httpClient: &http.Client{
@@ -87,7 +87,7 @@ func (api *orderApiImpl) DoCreateOrder(ctx context.Context, dto *types.OrderDTO)
 	reqBytes, _ := json.Marshal(bizReqMap)
 
 	// 发送请求
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, api.upstreamURL, bytes.NewBuffer(reqBytes))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, api.upstreamURL["CreateOrder"], bytes.NewBuffer(reqBytes))
 	if err != nil {
 		return nil, fmt.Errorf("[orderApi.DoCreateOrder] http.NewRequestWithContext error: %w", err)
 	}
@@ -109,4 +109,48 @@ func (api *orderApiImpl) DoCreateOrder(ctx context.Context, dto *types.OrderDTO)
 		return nil, err
 	}
 	return &createResp, nil
+}
+func (api *orderApiImpl) DoQueryOrder(ctx context.Context, ids []string) ([]sink.OrderQueryResp, error) {
+	// 2) 根据解析到的信息，准备查询参数。这里假设 Fulu 的查询接口需要 productId、customerOrderNo 等
+	//   - 你可以根据实际的第三方接口做调整
+	queryParam := map[string][]string{
+		"orderIds": ids,
+	}
+	reqBytes, err := json.Marshal(queryParam)
+	if err != nil {
+		return nil, fmt.Errorf("marshal queryParam fail: %w", err)
+	}
+
+	// 3) 发起 HTTP 请求到 Fulu 的查询接口(假设是 POST)
+	url := api.upstreamURL["QueryOrder"] // 你需要替换为实际的查询地址
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(reqBytes))
+	if err != nil {
+		return nil, fmt.Errorf("create query httpReq fail: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := api.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("fulu query request fail: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("fulu query fail: http code=%d", resp.StatusCode)
+	}
+
+	// 4) 解析响应到通用结构 CommonAPIResp
+	var fuluResp sink.CommonListAPIResp
+	if err := json.NewDecoder(resp.Body).Decode(&fuluResp); err != nil {
+		return nil, fmt.Errorf("decode fulu query resp fail: %w", err)
+	}
+
+	// 5) 根据第三方返回的字段设置订单状态 / 数据
+	//    - 假设fuluResp.Code == 200 时表示成功
+	//    - fuluResp.Data 里包含订单状态/时间/等；可根据需要继续解析
+	if fuluResp.Code != 200 {
+		return nil, fmt.Errorf("fulu query result fail: code=%d, msg=%s", fuluResp.Code, fuluResp.Message)
+	}
+
+	return fuluResp.Data, nil
 }

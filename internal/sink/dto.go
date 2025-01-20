@@ -26,3 +26,20 @@ type SmsReq struct {
 	PublicCode string `json:"publicCode"`
 	Phone      string `json:"phone"`
 }
+
+type OrderQueryResp struct {
+	OrderId           string `json:"orderId"`
+	DownstreamOrderId string `json:"downstreamOrderId"`
+	DataJSON          string `json:"dataJSON"`
+}
+type CommonAPIResp struct {
+	Code    int         `json:"code"`
+	Message string      `json:"message"`
+	Data    interface{} `json:"data,omitempty"`
+}
+
+type CommonListAPIResp struct {
+	Code    int              `json:"code"`
+	Message string           `json:"message"`
+	Data    []OrderQueryResp `json:"data,omitempty"`
+}
