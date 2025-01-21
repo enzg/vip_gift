@@ -72,6 +72,7 @@ type PubEntity struct {
 	Compositions   []PubComposeEntity `gorm:"-" json:"compositions"`
 	SalePrice      float64            `gorm:"column:sale_price;not null;default:0"    json:"salePrice"`
 	ParValue       float64            `gorm:"column:par_value;not null;default:0"     json:"parValue"`
+	CommissionMF   float64            `gorm:"column:commission_mf;not null;default:0"  json:"commissionMF"`
 	Cover          string             `gorm:"size:255"          json:"cover"`
 	Desc           string             `gorm:"type:text"         json:"desc"`
 	Pics           []string           `gorm:"-"                 json:"pics"`       // 不直接存库, 或另有处理

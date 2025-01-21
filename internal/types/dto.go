@@ -75,14 +75,15 @@ func (dto *PubComposeDTO) ToEntity() (*PubComposeEntity, error) {
 // 3. PubDTO
 // ------------------
 type PubDTO struct {
-	ID          uint64   `json:"id"`
-	PublicCode  string   `json:"publicCode"`
-	ProductName string   `json:"productName"`
-	SalePrice   float64  `json:"salePrice"`
-	ParValue    float64  `json:"parValue"`
-	Cover       string   `json:"cover"`
-	Desc        string   `json:"desc"`
-	Pics        []string `json:"pics"`
+	ID           uint64   `json:"id"`
+	PublicCode   string   `json:"publicCode"`
+	ProductName  string   `json:"productName"`
+	SalePrice    float64  `json:"salePrice"`
+	ParValue     float64  `json:"parValue"`
+	CommissionMF float64  `json:"commissionMF"`
+	Cover        string   `json:"cover"`
+	Desc         string   `json:"desc"`
+	Pics         []string `json:"pics"`
 
 	Categories []string `json:"categories,omitempty"` // Tags / categories for ES
 	Tag        string   `json:"tag,omitempty"`

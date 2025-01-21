@@ -106,6 +106,9 @@ func (s *pubServiceImpl) UpdateByPublicCode(publicCode string, dto *types.PubDTO
 	if dto.ParValue != 0 {
 		oldEnt.ParValue = dto.ParValue
 	}
+	if dto.CommissionMF != 0 {
+		oldEnt.CommissionMF = dto.CommissionMF
+	}
 	if dto.Cover != "" {
 		oldEnt.Cover = dto.Cover
 	}
@@ -271,16 +274,17 @@ func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]Gr
 		src := doc["_source"].(map[string]interface{})
 
 		dto := types.PubDTO{
-			PublicCode:  stringValue(src["id"]),
-			ProductName: stringValue(src["name"]),
-			SalePrice:   floatValue(src["salePrice"]),
-			ParValue:    floatValue(src["parValue"]),
-			Cover:       stringValue(src["cover"]),
-			Categories:  stringSliceValue(src["categories"]),
-			Pics:        stringSliceValue(src["pics"]),
-			Desc:        stringValue(src["desc"]),
-			Tag:         stringValue(src["tag"]),
-			Fetched:     boolValue(src["fetched"]),
+			PublicCode:   stringValue(src["id"]),
+			ProductName:  stringValue(src["name"]),
+			SalePrice:    floatValue(src["salePrice"]),
+			ParValue:     floatValue(src["parValue"]),
+			CommissionMF: floatValue(src["commissionMF"]),
+			Cover:        stringValue(src["cover"]),
+			Categories:   stringSliceValue(src["categories"]),
+			Pics:         stringSliceValue(src["pics"]),
+			Desc:         stringValue(src["desc"]),
+			Tag:          stringValue(src["tag"]),
+			Fetched:      boolValue(src["fetched"]),
 		}
 
 		// 如果要做 isIncomplete / fillFromDBAndUpdateES，就保留逻辑
@@ -345,6 +349,9 @@ func (s *pubServiceImpl) fillFromDBAndUpdateES(dto *types.PubDTO) error {
 		}
 		if dto.ParValue == 0 {
 			dto.ParValue = dbDTO.ParValue
+		}
+		if dto.CommissionMF == 0 {
+			dto.CommissionMF = dbDTO.CommissionMF
 		}
 		if dto.ProductName == "" {
 			dto.ProductName = dbDTO.ProductName
@@ -507,17 +514,18 @@ func (s *pubServiceImpl) fetchEsCategories() ([]string, error) {
 // indexToES 把 pubEntity 同步到 ES
 func (s *pubServiceImpl) indexToES(ent *types.PubEntity) error {
 	doc := map[string]interface{}{
-		"id":         ent.PublicCode, // _id
-		"name":       ent.ProductName,
-		"tag":        ent.Tag,
-		"categories": ent.Categories, // 需要在 PubEntity 中有
-		"salePrice":  ent.SalePrice,
-		"parValue":   ent.ParValue,
-		"cover":      ent.Cover,
-		"pics":       ent.Pics,
-		"fetched":    ent.Fetched,
-		"created_at": time.Now().Format(time.RFC3339),
-		"updated_at": time.Now().Format(time.RFC3339),
+		"id":           ent.PublicCode, // _id
+		"name":         ent.ProductName,
+		"tag":          ent.Tag,
+		"categories":   ent.Categories, // 需要在 PubEntity 中有
+		"salePrice":    ent.SalePrice,
+		"parValue":     ent.ParValue,
+		"commissionMF": ent.CommissionMF,
+		"cover":        ent.Cover,
+		"pics":         ent.Pics,
+		"fetched":      ent.Fetched,
+		"created_at":   time.Now().Format(time.RFC3339),
+		"updated_at":   time.Now().Format(time.RFC3339),
 	}
 	bodyBytes, _ := json.Marshal(doc)
 
