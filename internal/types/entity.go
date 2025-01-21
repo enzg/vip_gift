@@ -68,22 +68,23 @@ func (d *PubComposeEntity) GetStrategy() string { return d.Strategy }
 type PubEntity struct {
 	ID uint64 `gorm:"primaryKey;autoIncrement" json:"id"`
 
-	PublicCode     string             `gorm:"column:public_code;size:50;not null;uniqueIndex" json:"publicCode"`
-	Compositions   []PubComposeEntity `gorm:"-" json:"compositions"`
-	SalePrice      float64            `gorm:"column:sale_price;not null;default:0"    json:"salePrice"`
-	ParValue       float64            `gorm:"column:par_value;not null;default:0"     json:"parValue"`
-	CommissionMF   float64            `gorm:"column:commission_mf;not null;default:0"  json:"commissionMF"`
-	Cover          string             `gorm:"size:255"          json:"cover"`
-	Desc           string             `gorm:"type:text"         json:"desc"`
-	Pics           []string           `gorm:"-"                 json:"pics"`       // 不直接存库, 或另有处理
-	PicsJSON       string             `gorm:"column:pics_json;type:text" json:"-"` // 内部持久化
-	OriginData     string             `gorm:"type:text"         json:"originData"`
-	Status         int64              `gorm:"not null;default:0" json:"status"` // 1上架,0下架,2其他
-	ProductName    string             `gorm:"column:product_name;size:100;not null"   json:"productName"`
-	Tag            string             `gorm:"column:tag;size:255"      json:"tag"`                 // 直接映射到 DB
-	Categories     []string           `gorm:"-"                       json:"categories,omitempty"` // 不直接存表
-	CategoriesJSON string             `gorm:"column:categories_json;type:text"  json:"-"`          // 用于持久化 JSON
-	Fetched        bool               `gorm:"-" json:"fetched,omitempty"`
+	PublicCode       string             `gorm:"column:public_code;size:50;not null;uniqueIndex" json:"publicCode"`
+	Compositions     []PubComposeEntity `gorm:"-" json:"compositions"`
+	SalePrice        float64            `gorm:"column:sale_price;not null;default:0"    json:"salePrice"`
+	ParValue         float64            `gorm:"column:par_value;not null;default:0"     json:"parValue"`
+	CommissionMF     float64            `gorm:"column:commission_mf;not null;default:0"  json:"commissionMF"`
+	CommissionRuleMF string             `gorm:"column:commission_rule_mf;type:text"     json:"commissionRuleMF"`
+	Cover            string             `gorm:"size:255"          json:"cover"`
+	Desc             string             `gorm:"type:text"         json:"desc"`
+	Pics             []string           `gorm:"-"                 json:"pics"`       // 不直接存库, 或另有处理
+	PicsJSON         string             `gorm:"column:pics_json;type:text" json:"-"` // 内部持久化
+	OriginData       string             `gorm:"type:text"         json:"originData"`
+	Status           int64              `gorm:"not null;default:0" json:"status"` // 1上架,0下架,2其他
+	ProductName      string             `gorm:"column:product_name;size:100;not null"   json:"productName"`
+	Tag              string             `gorm:"column:tag;size:255"      json:"tag"`                 // 直接映射到 DB
+	Categories       []string           `gorm:"-"                       json:"categories,omitempty"` // 不直接存表
+	CategoriesJSON   string             `gorm:"column:categories_json;type:text"  json:"-"`          // 用于持久化 JSON
+	Fetched          bool               `gorm:"-" json:"fetched,omitempty"`
 }
 
 // 实现 GiftPublic 接口
