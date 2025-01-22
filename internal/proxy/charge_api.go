@@ -48,6 +48,7 @@ func (api *chargeApiImpl) ToOrderDto(ctx context.Context, req sink.OrderCreateRe
 		DataJSON:          string(bizReqJSON),
 		Status:            0,
 		Remark:            "",
+		CommissionRule:    "MF", // 权益业务通通默认秒返
 	}
 	return dto, nil
 }

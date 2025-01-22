@@ -175,6 +175,7 @@ type OrderEntity struct {
 	DataJSON          string    `gorm:"type:text"                json:"dataJSON"`          // 存放订单相关数据
 	Status            int64     `gorm:"not null;default:1"       json:"status"`            // 1=待处理, 2=完成, 3=取消等
 	Remark            string    `gorm:"type:text"                json:"remark"`            // <-- 新增字段
+	CommissionRule    string    `gorm:"size:255"                json:"commissionRule"`     // <-- MF YYF CYF 等
 	CreatedAt         time.Time `gorm:"autoCreateTime" json:"createdAt"`
 	UpdatedAt         time.Time `gorm:"autoUpdateTime" json:"updatedAt"`
 }

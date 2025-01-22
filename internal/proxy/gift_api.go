@@ -54,6 +54,7 @@ func (api *giftApiImpl) ToOrderDto(ctx context.Context, ent sink.OrderCreateReq)
 		DataJSON:          string(bizReqJSON),
 		Status:            0,
 		Remark:            "",
+		CommissionRule:    "MF", // 权益业务通通默认秒返
 	}
 	return dto, nil
 }
