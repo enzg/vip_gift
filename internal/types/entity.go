@@ -171,6 +171,8 @@ func (d *PubEntity) GetESCategories() []string {
 type OrderEntity struct {
 	ID                uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
 	OrderId           string    `gorm:"size:50;uniqueIndex"      json:"orderId"`           // 由 Snowflake 或其他方法生成
+	UserSn            string    `gorm:"size:255"                  json:"userSn"`           // 用户编号
+	ParentSn          string    `gorm:"size:255"                  json:"parentSn"`         // 上级编号
 	DownstreamOrderId string    `gorm:"size:50;uniqueIndex"      json:"downstreamOrderId"` // 外部系统传入的订单ID
 	DataJSON          string    `gorm:"type:text"                json:"dataJSON"`          // 存放订单相关数据
 	Status            int64     `gorm:"not null;default:1"       json:"status"`            // 1=待处理, 2=完成, 3=取消等
