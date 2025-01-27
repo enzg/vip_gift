@@ -11,6 +11,8 @@ type OrderCreateReq struct {
 	DataJSON          string `json:"dataJSON,omitempty"`   // 可选，存各种其他信息
 	Amount            int64  `json:"amount,omitempty"`     // 可选，金额
 	Source            string `json:"source,omitempty"`     // 可选，订单来源
+	PartnerId         string `json:"partnerId,omitempty"`  // 可选，合作方ID
+	ParentSn          string `json:"parentSn,omitempty"`   // 可选，上级编号
 }
 
 // OrderCreateResp - 返回给前端
@@ -37,6 +39,7 @@ type OrderQueryResp struct {
 	OrderId           string `json:"orderId"`
 	DownstreamOrderId string `json:"downstreamOrderId"`
 	DataJSON          string `json:"dataJSON"`
+	Status            string `json:"status"`
 }
 type CommonAPIResp struct {
 	Code    int         `json:"code"`

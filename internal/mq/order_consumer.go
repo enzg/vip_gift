@@ -17,10 +17,14 @@ import (
 
 // OrderMessage 用于解析从kafka拉取的订单JSON
 type OrderMessage struct {
-	DownstreamOrderId string `json:"downstreamOrderId"`
-	DataJSON          string `json:"dataJSON"`
-	OrderId           string `json:"orderId"`
-	Status            int64  `json:"status"`
+	DownstreamOrderId string  `json:"downstreamOrderId"`
+	DataJSON          string  `json:"dataJSON"`
+	OrderId           string  `json:"orderId"`
+	Status            int64   `json:"status"`
+	CommissionSelf    float64 `json:"commissionSelf"`
+	CommissionParent  float64 `json:"commissionParent"`
+	UserSn            string  `json:"userSn"`
+	ParentSn          string  `json:"parentSn"`
 }
 
 // OrderConsumer 结构，包含 Reader
@@ -112,6 +116,11 @@ func (o *OrderConsumer) handleOrder(msg OrderMessage) {
 		DataJSON:          msg.DataJSON,
 		Status:            msg.Status,
 		Remark:            "", // 可以根据需要设置. 创建时默认为空
+		UserSn:            msg.UserSn,
+		ParentSn:          msg.ParentSn,
+		CommissionRule:    "MF", // 权益业务通通默认秒返
+		CommissionSelf:    msg.CommissionSelf,
+		CommissionParent:  msg.CommissionParent,
 	}
 
 	// 2) 写DB

@@ -48,6 +48,17 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return ErrorJSON(c, http.StatusBadRequest, err.Error())
 	}
+	// 从 http headers 中获取用户信息
+	userSn := c.Get("partnerId")
+	if userSn == "" {
+		return ErrorJSON(c, http.StatusUnauthorized, "partnerId is required")
+	}
+	parentSn := c.Get("parentSn")
+	if parentSn == "" {
+		return ErrorJSON(c, http.StatusUnauthorized, "parentSn is required")
+	}
+	req.PartnerId = userSn
+	req.ParentSn = parentSn
 	// 0)
 	var api types.OrderApi
 	switch {

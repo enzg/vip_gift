@@ -37,13 +37,20 @@ func (api *giftApiImpl) DoSendSms(ctx context.Context, req sink.SmsReq) (*sink.O
 	return &sink.OrderCreateResp{}, nil
 }
 func (api *giftApiImpl) ToOrderDto(ctx context.Context, ent sink.OrderCreateReq) (types.OrderDTO, error) {
+	// 保证 downstreamOrderId 不为空 这个字段是在不同节点查询订单用的
+	// 正式版本应该是转变成公钥加密的数据
 	var downstreamOrderId string = ent.DownstreamOrderId
 	if downstreamOrderId == "" {
 		return types.OrderDTO{}, fmt.Errorf("ToOrderDto: downstreamOrderId is required")
-		// generatedDsId := fmt.Sprintf("VIP-%d", generateRandom()) // 你可以用 Snowflake 等更好的生成
-		// downstreamOrderId = generatedDsId
-		// log.Printf("[ToOrderDto] No downstreamOrderId provided, generated one: %s\n", generatedDsId)
 	}
+	// 检查publicCode 对应的产品有没有
+	pubCode := ent.PublicCode
+	pub, err := api.pub.GetByPublicCode(pubCode)
+	if err != nil {
+		log.Printf("[ToOrderDto] GetByPublicCode error: %v\n", err)
+		return types.OrderDTO{}, err
+	}
+
 	packReq := sink.BizDataJSON[sink.OrderCreateReq]{
 		Body:  ent,
 		Extra: ent.DataJSON,
@@ -55,6 +62,11 @@ func (api *giftApiImpl) ToOrderDto(ctx context.Context, ent sink.OrderCreateReq)
 		Status:            0,
 		Remark:            "",
 		CommissionRule:    "MF", // 权益业务通通默认秒返
+		UserSn:            ent.PartnerId,
+		ParentSn:          ent.ParentSn,
+		PublicCode:        pubCode,
+		CommissionSelf:    pub.CommissionMF * 0.85,
+		CommissionParent:  pub.CommissionMF * 0.15,
 	}
 	return dto, nil
 }
@@ -157,6 +169,7 @@ func (api *giftApiImpl) DoQueryOrder(ctx context.Context, ids []string) ([]sink.
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("fulu query fail: http code=%d", resp.StatusCode)
 	}
+	fmt.Printf("[DoQueryOrder] query upstream resp: %+v\n", resp.Body)
 
 	// 4) 解析响应到通用结构 CommonAPIResp
 	var fuluResp sink.CommonListAPIResp

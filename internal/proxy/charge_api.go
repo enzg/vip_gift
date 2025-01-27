@@ -49,6 +49,8 @@ func (api *chargeApiImpl) ToOrderDto(ctx context.Context, req sink.OrderCreateRe
 		Status:            0,
 		Remark:            "",
 		CommissionRule:    "MF", // 权益业务通通默认秒返
+		UserSn:            req.PartnerId,
+		ParentSn:          req.ParentSn,
 	}
 	return dto, nil
 }

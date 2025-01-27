@@ -120,6 +120,11 @@ func (s *orderServiceImpl) StoreToDB(ctx context.Context, dto *types.OrderDTO) e
 				DataJSON:          dto.DataJSON,
 				Status:            dto.Status,
 				Remark:            dto.Remark,
+				UserSn:            dto.UserSn,
+				ParentSn:          dto.ParentSn,
+				CommissionRule:    dto.CommissionRule,
+				CommissionSelf:    dto.CommissionSelf,
+				CommissionParent:  dto.CommissionParent,
 			}
 			if errC := s.repo.CreateOrder(newEnt); errC != nil {
 				return fmt.Errorf("StoreToDB: create error: %w", errC)
@@ -175,6 +180,12 @@ func (s *orderServiceImpl) GetOrder(ctx context.Context, orderId string) (*types
 		DownstreamOrderId: ent.DownstreamOrderId,
 		DataJSON:          ent.DataJSON,
 		Status:            ent.Status,
+		Remark:            ent.Remark,
+		UserSn:            ent.UserSn,
+		ParentSn:          ent.ParentSn,
+		CommissionRule:    ent.CommissionRule,
+		CommissionSelf:    ent.CommissionSelf,
+		CommissionParent:  ent.CommissionParent,
 	}
 	return dto, nil
 }
@@ -191,6 +202,11 @@ func (s *orderServiceImpl) ListOrder(ctx context.Context, page, size int64, orde
 			DownstreamOrderId: e.DownstreamOrderId,
 			DataJSON:          e.DataJSON,
 			Status:            e.Status,
+			UserSn:            e.UserSn,
+			ParentSn:          e.ParentSn,
+			CommissionRule:    e.CommissionRule,
+			CommissionSelf:    e.CommissionSelf,
+			CommissionParent:  e.CommissionParent,
 		}
 	}
 	return dtos, total, nil
