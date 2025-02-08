@@ -83,8 +83,8 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 	// 3) 组装响应
 	resp := sink.OrderCreateResp{
 		OrderId: out.OrderId,
-		Status:  out.Status,
-		Message: "订单创建成功",
+		Status:  int64(out.Status),
+		Message: out.Status.Remark(),
 	}
 	return SuccessJSON(c, resp)
 }

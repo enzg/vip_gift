@@ -40,6 +40,7 @@ type OrderQueryResp struct {
 	DownstreamOrderId string `json:"downstreamOrderId"`
 	DataJSON          string `json:"dataJSON"`
 	Status            string `json:"status"`
+	Remark            string `json:"remark,omitempty"`
 }
 type CommonAPIResp struct {
 	Code    int         `json:"code"`

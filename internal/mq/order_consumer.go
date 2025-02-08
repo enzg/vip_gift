@@ -17,27 +17,28 @@ import (
 
 // OrderMessage 用于解析从kafka拉取的订单JSON
 type OrderMessage struct {
-	DownstreamOrderId string  `json:"downstreamOrderId"`
-	DataJSON          string  `json:"dataJSON"`
-	OrderId           string  `json:"orderId"`
-	Status            int64   `json:"status"`
-	CommissionSelf    float64 `json:"commissionSelf"`
-	CommissionParent  float64 `json:"commissionParent"`
-	UserSn            string  `json:"userSn"`
-	ParentSn          string  `json:"parentSn"`
+	DownstreamOrderId string            `json:"downstreamOrderId"`
+	DataJSON          string            `json:"dataJSON"`
+	OrderId           string            `json:"orderId"`
+	Status            types.OrderStatus `json:"status"`
+	CommissionSelf    float64           `json:"commissionSelf"`
+	CommissionParent  float64           `json:"commissionParent"`
+	UserSn            string            `json:"userSn"`
+	ParentSn          string            `json:"parentSn"`
 }
 
 // OrderConsumer 结构，包含 Reader
 type OrderConsumer struct {
-	reader       *kafka.Reader
-	stopCh       chan struct{}
-	orderService service.OrderService // 注入订单服务
-	pub          service.PubService
+	reader         *kafka.Reader
+	stopCh         chan struct{}
+	orderService   service.OrderService // 注入订单服务
+	pub            service.PubService
+	queryScheduler *QueryScheduler // reference to our scheduler
 	// orderApi     types.OrderApi
 }
 
 // NewOrderConsumer 初始化消费者
-func NewOrderConsumer(brokers []string, topic, groupID string, orderSvc service.OrderService, pubSvc service.PubService /*, orderApi types.OrderApi*/) *OrderConsumer {
+func NewOrderConsumer(brokers []string, topic, groupID string, orderSvc service.OrderService, pubSvc service.PubService, qs *QueryScheduler) *OrderConsumer {
 	r := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:  brokers,
 		GroupID:  groupID, // 消费者组
@@ -48,10 +49,11 @@ func NewOrderConsumer(brokers []string, topic, groupID string, orderSvc service.
 	})
 
 	return &OrderConsumer{
-		reader:       r,
-		stopCh:       make(chan struct{}),
-		orderService: orderSvc,
-		pub:          pubSvc,
+		reader:         r,
+		stopCh:         make(chan struct{}),
+		orderService:   orderSvc,
+		pub:            pubSvc,
+		queryScheduler: qs,
 		// orderApi:     orderApi,
 	}
 }
@@ -156,4 +158,19 @@ func (o *OrderConsumer) handleOrder(msg OrderMessage) {
 	}
 	log.Printf("[OrderConsumer] DoCreateOrder resp: %+v\n", orderCreateResp)
 
+}
+
+// scheduleQueryAttempts pushes tasks into the QueryScheduler
+func (o *OrderConsumer) scheduleQueryAttempts(dto *types.OrderDTO, orderApi types.OrderApi) {
+	delays := []time.Duration{3 * time.Second, 7 * time.Second, 11 * time.Second}
+	for _, d := range delays {
+		task := QueryTask{
+			OrderDTO: dto,
+			Delay:    d,
+			OrderApi: orderApi,
+			OrderSvc: o.orderService,
+		}
+		o.queryScheduler.ScheduleQuery(task)
+	}
+	log.Printf("[OrderConsumer] scheduled queries for order=%s\n", dto.OrderId)
 }

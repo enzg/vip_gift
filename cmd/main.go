@@ -59,6 +59,10 @@ func main() {
 	orderSvc := service.NewOrderService(orderRepo, kafkaWriter, snowflakeFn /*, esClient*/)
 	orderHdl := handler.NewOrderHandler(orderSvc, pubSvc)
 	orderHdl.RegisterRoutes(api) // POST /orders, GET /orders/:orderId
+	notifier := service.NewUpstreamNotifier("https://left.10000hk.com/api/order/upstream/update_order_status")
+	// 2) Create the QueryScheduler
+	scheduler := mq.NewQueryScheduler(100, notifier) // buffer size
+	scheduler.Start()
 
 	// 9) 若要在同进程启动消费端:
 	//    初始化消费者, 并启动
@@ -68,7 +72,7 @@ func main() {
 		consumerId,         // group ID
 		orderSvc,           // 注入同一个 orderSvc
 		pubSvc,
-		// orderApi,
+		scheduler,
 	)
 	orderConsumer.Start()
 	defer orderConsumer.Stop()
