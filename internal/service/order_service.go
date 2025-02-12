@@ -139,20 +139,8 @@ func (s *orderServiceImpl) StoreToDB(ctx context.Context, dto *types.OrderDTO) e
 	// ================
 	// 已存在 => 更新
 	// ================
-	// 确保不允许修改 orderId, downstreamOrderId
-	//   - 如果调用方传的 downstreamOrderId != 现有值，直接报错
-	if dto.DownstreamOrderId != "" && dto.DownstreamOrderId != existing.DownstreamOrderId {
-		return fmt.Errorf("不可修改 downstreamOrderId (existing=%s, got=%s)",
-			existing.DownstreamOrderId, dto.DownstreamOrderId)
-	}
-	// orderId 一般前端不会改，但可加个防御
-	if dto.OrderId != existing.OrderId {
-		return fmt.Errorf("不可修改 orderId (existing=%s, got=%s)",
-			existing.OrderId, dto.OrderId)
-	}
 
-	// 只更新可变的字段( DataJSON / Status / Remark 等)
-	existing.DataJSON = dto.DataJSON
+	// 只更新可变的字段( Status / Remark 等)
 	existing.Status = dto.Status
 	existing.Remark = dto.Remark
 
@@ -211,28 +199,6 @@ func (s *orderServiceImpl) ListOrder(ctx context.Context, page, size int64, orde
 	}
 	return dtos, total, nil
 }
-
-// func (s *orderServiceImpl) ToOrderDto(ctx context.Context, ent sink.OrderCreateReq) (types.OrderDTO, error) {
-// 	var downstreamOrderId string = ent.DownstreamOrderId
-// 	if downstreamOrderId == "" {
-// 		return types.OrderDTO{}, fmt.Errorf("ToOrderDto: downstreamOrderId is required")
-// 		// generatedDsId := fmt.Sprintf("VIP-%d", generateRandom()) // 你可以用 Snowflake 等更好的生成
-// 		// downstreamOrderId = generatedDsId
-// 		// log.Printf("[ToOrderDto] No downstreamOrderId provided, generated one: %s\n", generatedDsId)
-// 	}
-// 	packReq := sink.BizDataJSON{
-// 		Body:  ent,
-// 		Extra: ent.DataJSON,
-// 	}
-// 	bizReqJSON, _ := json.Marshal(packReq)
-// 	dto := types.OrderDTO{
-// 		DownstreamOrderId: downstreamOrderId,
-// 		DataJSON:          string(bizReqJSON),
-// 		Status:            0,
-// 		Remark:            "",
-// 	}
-// 	return dto, nil
-// }
 
 // OrderService 中新增的方法
 func (s *orderServiceImpl) GetOrderByDownstreamOrderId(ctx context.Context, downstreamOrderId string) (*types.OrderEntity, error) {

@@ -191,6 +191,23 @@ func (h *OrderHandler) QueryOrders(c *fiber.Ctx) error {
 			// return ErrorJSON(c, 500, err.Error())
 			fmt.Println("VV group query error:", err)
 		}
+		// 这里刷新一次本地数据库的订单状态
+		for _, o := range respVV {
+			// 从 respVV 中取出订单状态，更新到本地数据库
+			order, err := h.svc.GetOrderByDownstreamOrderId(context.Background(), o.DownstreamOrderId)
+			if err != nil {
+				// 没查到就跳过
+				continue
+			}
+			statusNew, _ := types.ConvertStringToOrderStatus(o.Status)
+			dto := &types.OrderDTO{
+				OrderId:           order.GetOrderId(),
+				DownstreamOrderId: order.GetDownstreamOrderId(),
+				Status:            statusNew,
+				Remark:            statusNew.Remark(),
+			}
+			_ = h.svc.StoreToDB(context.Background(), dto)
+		}
 		orderResults = append(orderResults, respVV...)
 	}
 
