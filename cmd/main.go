@@ -48,10 +48,6 @@ func main() {
 	//    从 pkg 包中获取初始化函数
 	kafkaWriter := pkg.InitKafkaWriter(kafkaUrl, topicOrerCreate) // broker和topic可改
 	snowflakeFn := pkg.InitSnowflake(1)
-	// orderApi := proxy.NewOrderApi(map[string]string{
-	// 	"CreateOrder": "https://api0.10000hk.com/api/product/gift/customer/orders/create",
-	// 	"QueryOrder":  "https://api0.10000hk.com/api/product/gift/orders/query",
-	// }, pubSvc)
 
 	// 8) Order 模块
 	orderRepo := repository.NewOrderRepo(db)

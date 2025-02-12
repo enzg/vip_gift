@@ -158,11 +158,15 @@ func (o *OrderConsumer) handleOrder(msg OrderMessage) {
 	}
 	log.Printf("[OrderConsumer] DoCreateOrder resp: %+v\n", orderCreateResp)
 
+	// If creation succeeded, we schedule queries at 3s, 7s, 11s
+	// so we do not block the consumer
+	o.scheduleQueryAttempts(dto, orderApi)
+
 }
 
 // scheduleQueryAttempts pushes tasks into the QueryScheduler
 func (o *OrderConsumer) scheduleQueryAttempts(dto *types.OrderDTO, orderApi types.OrderApi) {
-	delays := []time.Duration{3 * time.Second, 7 * time.Second, 11 * time.Second}
+	delays := []time.Duration{3 * time.Second, 7 * time.Second, 13 * time.Second, 31 * time.Second, 61 * time.Second, 121 * time.Second}
 	for _, d := range delays {
 		task := QueryTask{
 			OrderDTO: dto,

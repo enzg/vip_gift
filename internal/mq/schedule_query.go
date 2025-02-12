@@ -72,7 +72,8 @@ func (qs *QueryScheduler) handleTask(task QueryTask) {
 
 	// Attempt the query
 	// For demonstration, we pass a slice of 1 ID.
-	orderIds := []string{task.OrderDTO.OrderId}
+	fmt.Printf("[QueryScheduler] querying order=%s\n", task.OrderDTO.DownstreamOrderId)
+	orderIds := []string{task.OrderDTO.DownstreamOrderId}
 	resp, err := task.OrderApi.DoQueryOrder(context.Background(), orderIds)
 	if err != nil {
 		// handle error: update DB to reflect error status or log it

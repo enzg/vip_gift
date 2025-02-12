@@ -169,13 +169,13 @@ func (api *giftApiImpl) DoQueryOrder(ctx context.Context, ids []string) ([]sink.
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("fulu query fail: http code=%d", resp.StatusCode)
 	}
-	fmt.Printf("[DoQueryOrder] query upstream resp: %+v\n", resp.Body)
 
 	// 4) 解析响应到通用结构 CommonAPIResp
 	var fuluResp sink.CommonListAPIResp
 	if err := json.NewDecoder(resp.Body).Decode(&fuluResp); err != nil {
 		return nil, fmt.Errorf("decode fulu query resp fail: %w", err)
 	}
+	fmt.Printf("[DoQueryOrder] query upstream resp: %+v\n", fuluResp)
 
 	// 5) 根据第三方返回的字段设置订单状态 / 数据
 	//    - 假设fuluResp.Code == 200 时表示成功
