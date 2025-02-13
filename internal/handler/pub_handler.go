@@ -187,18 +187,20 @@ func (h *PubHandler) SearchChargePub(c *fiber.Ctx) error {
 	}
 
 	// 定义 API 返回数据的结构体
+	type DataItem struct {
+		Platform  string `json:"platform"`
+		Product   string `json:"product"`
+		Range     string `json:"range"`
+		SalePrice string `json:"salePrice"`
+		ProductId string `json:"productId"`
+	}
+
 	type APIResponse struct {
 		Code    int    `json:"code"`
 		Message string `json:"message"`
 		Data    struct {
-			DataList []struct {
-				Platform  string `json:"platform"`
-				Product   string `json:"product"`
-				Range     string `json:"range"`
-				SalePrice string `json:"salePrice"`
-				ProductId string `json:"productId"`
-			} `json:"dataList"`
-			Total int `json:"total"`
+			DataList []DataItem `json:"dataList"`
+			Total    int        `json:"total"`
 		} `json:"data"`
 	}
 
@@ -213,8 +215,25 @@ func (h *PubHandler) SearchChargePub(c *fiber.Ctx) error {
 		return ErrorJSON(c, apiResp.Code, apiResp.Message)
 	}
 
+	// 如果请求中传入了 productIds，则过滤返回的结果，只保留符合条件的数据
+	if len(req.ProductIds) > 0 {
+		// 建立一个 map 便于查找
+		productMap := make(map[string]bool)
+		for _, pid := range req.ProductIds {
+			productMap[pid] = true
+		}
+		filteredList := make([]DataItem, 0)
+		for _, item := range apiResp.Data.DataList {
+			if productMap[item.ProductId] {
+				filteredList = append(filteredList, item)
+			}
+		}
+		apiResp.Data.DataList = filteredList
+		apiResp.Data.Total = len(filteredList)
+	}
+
 	// 成功则将 data 部分直接返回给前端
-	return c.JSON(apiResp.Data)
+	return SuccessJSON(c, apiResp.Data)
 
 }
 func (h *PubHandler) SearchPub(c *fiber.Ctx) error {

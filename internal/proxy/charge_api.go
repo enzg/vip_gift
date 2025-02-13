@@ -84,7 +84,7 @@ func (api *chargeApiImpl) DoCreateOrder(ctx context.Context, dto *types.OrderDTO
 	if chargeResp.Code != 200 {
 		status = 500
 	} else {
-		status = 1
+		status = 100
 	}
 
 	dataJsonBytes, err := json.Marshal(chargeResp.Data)
@@ -93,9 +93,10 @@ func (api *chargeApiImpl) DoCreateOrder(ctx context.Context, dto *types.OrderDTO
 	}
 
 	return &sink.OrderCreateResp{
-		OrderId: dto.OrderId,
-		Status:  status,
-		Message: string(dataJsonBytes),
+		OrderId:    dto.OrderId,
+		Status:     status,
+		StatusText: types.OrderStatus(status).String(),
+		Message:    string(dataJsonBytes),
 	}, nil
 }
 func (api *chargeApiImpl) DoQueryOrder(ctx context.Context, ids []string) ([]sink.OrderQueryResp, error) {

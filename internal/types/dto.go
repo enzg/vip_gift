@@ -127,6 +127,10 @@ type OrderDTO struct {
 	CommissionSelf    float64     `json:"commissionSelf,omitempty"`   // 自己的佣金
 	CommissionParent  float64     `json:"commissionParent,omitempty"` // 上级的佣金
 }
+type ClientOrderDTO struct {
+	*OrderDTO
+	StatusText string `json:"statusText"`
+}
 
 func (dto *OrderDTO) FromEntity(ent *OrderEntity) error {
 	if ent == nil {
@@ -142,6 +146,14 @@ func (dto *OrderDTO) FromEntity(ent *OrderEntity) error {
 
 func (dto *OrderDTO) ToEntity() (*OrderEntity, error) {
 	return copyOrderDTOToEntity(dto)
+}
+
+func (dto *OrderDTO) ToClientDTO() (*ClientOrderDTO, error) {
+	clientDTO := &ClientOrderDTO{
+		OrderDTO:   dto,
+		StatusText: dto.Status.String(),
+	}
+	return clientDTO, nil
 }
 
 // =====================================================================

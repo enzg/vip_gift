@@ -17,9 +17,10 @@ type OrderCreateReq struct {
 
 // OrderCreateResp - 返回给前端
 type OrderCreateResp struct {
-	OrderId string `json:"orderId"`
-	Status  int64  `json:"status"`
-	Message string `json:"message,omitempty"`
+	OrderId    string `json:"orderId"`
+	Status     int64  `json:"status"`
+	StatusText string `json:"statusText"`
+	Message    string `json:"message,omitempty"`
 }
 type OrderChargeReq struct {
 	Phone             string `json:"phone"`

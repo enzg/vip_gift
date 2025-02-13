@@ -12,6 +12,7 @@ import (
 	"10000hk.com/vip_gift/internal/types"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/samber/lo"
 )
 
 type OrderHandler struct {
@@ -82,9 +83,10 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 
 	// 3) 组装响应
 	resp := sink.OrderCreateResp{
-		OrderId: out.OrderId,
-		Status:  int64(out.Status),
-		Message: out.Status.Remark(),
+		OrderId:    out.OrderId,
+		Status:     int64(out.Status),
+		StatusText: out.Status.String(),
+		Message:    out.Status.Remark(),
 	}
 	return SuccessJSON(c, resp)
 }
@@ -109,7 +111,8 @@ func (h *OrderHandler) GetOneOrder(c *fiber.Ctx) error {
 	if err != nil {
 		return ErrorJSON(c, 404, err.Error())
 	}
-	return SuccessJSON(c, out)
+	clientDto, _ := out.ToClientDTO()
+	return SuccessJSON(c, clientDto)
 }
 
 // -------------------------------------------------------------------
@@ -138,11 +141,15 @@ func (h *OrderHandler) ListOrders(c *fiber.Ctx) error {
 	if err != nil {
 		return ErrorJSON(c, 500, err.Error())
 	}
-
+	// to clientDto
+	orderItems := lo.Map(items, func(item types.OrderDTO, idx int) *types.ClientOrderDTO {
+		clientDto, _ := item.ToClientDTO()
+		return clientDto
+	})
 	// 返回 { "total":..., "dataList": [...] }
 	resp := fiber.Map{
 		"total":    total,
-		"dataList": items,
+		"dataList": orderItems,
 	}
 	return SuccessJSON(c, resp)
 }
