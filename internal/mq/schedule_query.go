@@ -93,7 +93,7 @@ func (qs *QueryScheduler) handleTask(task QueryTask) {
 		//   2 -> success, 3 -> failed, etc.
 		// We'll only use the first item to demonstrate:
 		newStatus := resp[0].Status
-		parsed, err := types.ConvertStringToOrderStatus(newStatus)
+		parsed := types.OrderStatus(newStatus)
 		if err != nil {
 			// 处理未知枚举值，比如记录日志或给个默认值
 		}

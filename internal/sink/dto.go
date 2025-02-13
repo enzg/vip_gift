@@ -41,7 +41,8 @@ type OrderQueryResp struct {
 	OrderId           string `json:"orderId"`
 	DownstreamOrderId string `json:"downstreamOrderId"`
 	DataJSON          string `json:"dataJSON"`
-	Status            string `json:"status"`
+	Status            int64  `json:"status"`
+	StatusText        string `json:"statusText"`
 	Remark            string `json:"remark,omitempty"`
 }
 type CommonAPIResp struct {

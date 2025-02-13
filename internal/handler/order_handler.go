@@ -206,7 +206,7 @@ func (h *OrderHandler) QueryOrders(c *fiber.Ctx) error {
 				// 没查到就跳过
 				continue
 			}
-			statusNew, _ := types.ConvertStringToOrderStatus(o.Status)
+			statusNew := types.OrderStatus(o.Status)
 			dto := &types.OrderDTO{
 				OrderId:           order.GetOrderId(),
 				DownstreamOrderId: order.GetDownstreamOrderId(),
