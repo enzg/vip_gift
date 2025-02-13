@@ -3,6 +3,7 @@ package types
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -229,22 +230,61 @@ func (s OrderStatus) Remark() string {
 	}
 }
 
-// 自定义 JSON 序列化 —— 输出字符串
+// // 自定义 JSON 序列化 —— 输出字符串
+// func (s OrderStatus) MarshalJSON() ([]byte, error) {
+// 	return json.Marshal(s.String())
+// }
+
+// // 自定义 JSON 反序列化 —— 允许从字符串恢复到枚举值
+//
+//	func (s *OrderStatus) UnmarshalJSON(data []byte) error {
+//		var str string
+//		if err := json.Unmarshal(data, &str); err != nil {
+//			return err
+//		}
+//		parsed, err := parseStringToOrderStatus(str)
+//		if err != nil {
+//			return err
+//		}
+//		*s = parsed
+//		return nil
+//	}
 func (s OrderStatus) MarshalJSON() ([]byte, error) {
-	return json.Marshal(s.String())
+	// 序列化时输出 int64 数值
+	return json.Marshal(int64(s))
 }
 
-// 自定义 JSON 反序列化 —— 允许从字符串恢复到枚举值
 func (s *OrderStatus) UnmarshalJSON(data []byte) error {
-	var str string
-	if err := json.Unmarshal(data, &str); err != nil {
-		return err
+	// 如果 data 是字符串格式（首字节为 '"'），则按照字符串处理
+	if len(data) > 0 && data[0] == '"' {
+		var str string
+		if err := json.Unmarshal(data, &str); err != nil {
+			return err
+		}
+		switch str {
+		case "init":
+			*s = StatusInit
+		case "pending":
+			*s = StatusPending
+		case "success":
+			*s = StatusSuccess
+		// 支持两种写法： "fail.downstream" 或 "downstream_fail"
+		case "fail.downstream", "downstream_fail":
+			*s = StatusDownstreamFail
+		// 支持两种写法： "fail.upstream" 或 "upstream_fail"
+		case "fail.upstream", "upstream_fail":
+			*s = StatusUpstreamFail
+		default:
+			return errors.New("unknown OrderStatus: " + str)
+		}
+	} else {
+		// 如果 data 是数值格式，直接解析为 int64
+		var num int64
+		if err := json.Unmarshal(data, &num); err != nil {
+			return err
+		}
+		*s = OrderStatus(num)
 	}
-	parsed, err := parseStringToOrderStatus(str)
-	if err != nil {
-		return err
-	}
-	*s = parsed
 	return nil
 }
 func ConvertStringToOrderStatus(s string) (OrderStatus, error) {
