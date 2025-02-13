@@ -139,9 +139,10 @@ func (o *OrderConsumer) handleOrder(msg OrderMessage) {
 			"CreateOrder": "https://api0.10000hk.com/api/product/gift/customer/orders/create",
 			"QueryOrder":  "https://api0.10000hk.com/api/product/gift/orders/query",
 		}, o.pub)
-	case strings.Contains(msg.DownstreamOrderId, "VC"):
+	case strings.Contains(msg.DownstreamOrderId, "VF"):
 		orderApi = proxy.NewChargeApi(map[string]string{
 			"CreateOrder": "https://gift.10000hk.com/api/charge/order/recharge",
+			"QueryOrder":  "https://gift.10000hk.com/api/charge/order/query",
 		})
 	default:
 		log.Printf("[OrderConsumer] unknown downstreamOrderId: %s\n", msg.DownstreamOrderId)

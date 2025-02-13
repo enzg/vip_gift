@@ -22,9 +22,10 @@ type OrderCreateResp struct {
 	Message string `json:"message,omitempty"`
 }
 type OrderChargeReq struct {
-	Phone     string `json:"phone"`
-	ProductId string `json:"productId"`
-	Amount    int64  `json:"amount"`
+	Phone             string `json:"phone"`
+	ProductId         string `json:"productId"`
+	DownstreamOrderId string `json:"downstreamOrderId"`
+	Amount            int64  `json:"amount"`
 }
 type BizDataJSON[T any] struct {
 	Body  T      `json:"body"`

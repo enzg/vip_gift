@@ -36,14 +36,16 @@ func (api *chargeApiImpl) ToOrderDto(ctx context.Context, req sink.OrderCreateRe
 	}
 	packReq := sink.BizDataJSON[sink.OrderChargeReq]{
 		Body: sink.OrderChargeReq{
-			Phone:     req.Phone,
-			ProductId: req.ProductId,
-			Amount:    req.Amount,
+			Phone:             req.Phone,
+			DownstreamOrderId: downstreamOrderId,
+			ProductId:         req.PublicCode,
+			Amount:            req.Amount,
 		},
 		Extra: req.DataJSON,
 	}
 	bizReqJSON, _ := json.Marshal(packReq)
 	dto := types.OrderDTO{
+		PublicCode:        req.PublicCode,
 		DownstreamOrderId: downstreamOrderId,
 		DataJSON:          string(bizReqJSON),
 		Status:            0,
@@ -60,7 +62,7 @@ func (api *chargeApiImpl) DoCreateOrder(ctx context.Context, dto *types.OrderDTO
 		return nil, err
 	}
 	reqBytes, _ := json.Marshal(bizReq.Body)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, api.upstreamURL["createOrder"], bytes.NewReader(reqBytes))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, api.upstreamURL["CreateOrder"], bytes.NewReader(reqBytes))
 	if err != nil {
 		return nil, fmt.Errorf("chargeApi.DoCreateOrder: %w", err)
 	}
@@ -97,5 +99,44 @@ func (api *chargeApiImpl) DoCreateOrder(ctx context.Context, dto *types.OrderDTO
 	}, nil
 }
 func (api *chargeApiImpl) DoQueryOrder(ctx context.Context, ids []string) ([]sink.OrderQueryResp, error) {
-	return make([]sink.OrderQueryResp, 0), nil
+
+	queryParam := map[string][]string{
+		"orderIds": ids,
+	}
+	reqBytes, err := json.Marshal(queryParam)
+	if err != nil {
+		return nil, fmt.Errorf("marshal queryParam fail: %w", err)
+	}
+
+	// 3) 发起 HTTP 请求到 Fulu 的查询接口(假设是 POST)
+	url := api.upstreamURL["QueryOrder"] // 你需要替换为实际的查询地址
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(reqBytes))
+	if err != nil {
+		return nil, fmt.Errorf("create query httpReq fail: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := api.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("charge query request fail: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("charge query fail: http code=%d", resp.StatusCode)
+	}
+
+	// 4) 解析响应到通用结构 CommonAPIResp
+	var chargeResp sink.CommonListAPIResp
+	if err := json.NewDecoder(resp.Body).Decode(&chargeResp); err != nil {
+		return nil, fmt.Errorf("decode charge query resp fail: %w", err)
+	}
+	fmt.Printf("[DoQueryOrder] query upstream resp: %+v\n", chargeResp)
+
+	// 5) 根据第三方返回的字段设置订单状态 / 数据
+	if chargeResp.Code != 200 {
+		return nil, fmt.Errorf("fulu query result fail: code=%d, msg=%s", chargeResp.Code, chargeResp.Message)
+	}
+
+	return chargeResp.Data, nil
 }

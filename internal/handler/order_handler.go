@@ -64,7 +64,7 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 	switch {
 	case strings.Contains(req.DownstreamOrderId, "VV"):
 		api = proxy.NewGiftApi(map[string]string{}, h.pub)
-	case strings.Contains(req.DownstreamOrderId, "VC"):
+	case strings.Contains(req.DownstreamOrderId, "VF"):
 		api = proxy.NewChargeApi(map[string]string{})
 	default:
 		return ErrorJSON(c, http.StatusBadRequest, "downstreamOrderId is invalid")
@@ -160,7 +160,7 @@ func (h *OrderHandler) QueryOrders(c *fiber.Ctx) error {
 		return ErrorJSON(c, 400, "orderIds is required")
 	}
 	// 将orderIds按照 VV或者 VC前缀分组
-	// 1) 按前缀 VV 和 VC 分组
+	// 1) 按前缀 VV 和 VF 分组
 	var vvIds []string
 	var vcIds []string
 
@@ -168,7 +168,7 @@ func (h *OrderHandler) QueryOrders(c *fiber.Ctx) error {
 		switch {
 		case strings.HasPrefix(oid, "VV"):
 			vvIds = append(vvIds, oid)
-		case strings.HasPrefix(oid, "VC"):
+		case strings.HasPrefix(oid, "VF"):
 			vcIds = append(vcIds, oid)
 		}
 	}
@@ -211,17 +211,17 @@ func (h *OrderHandler) QueryOrders(c *fiber.Ctx) error {
 		orderResults = append(orderResults, respVV...)
 	}
 
-	// 2.2) 查询 VC 前缀订单
+	// 2.2) 查询 VF 前缀订单
 	if len(vcIds) > 0 {
 		respVC, err := chargeApi.DoQueryOrder(context.Background(), vcIds)
 		if err != nil {
-			fmt.Println("VC group query error:", err)
+			fmt.Println("VF group query error:", err)
 		}
 		orderResults = append(orderResults, respVC...)
 	}
 
 	// 3) 回填本地数据库里的 orderId
-	// 现在 orderResults 中包含 VV 和 VC 两组的查询结果
+	// 现在 orderResults 中包含 VV 和 VF 两组的查询结果
 	for i := range orderResults {
 		orderResult := &orderResults[i]
 		order, err := h.svc.GetOrderByDownstreamOrderId(context.Background(), orderResult.DownstreamOrderId)
