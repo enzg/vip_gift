@@ -2,10 +2,15 @@
 package handler
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"10000hk.com/vip_gift/internal/service"
 	"10000hk.com/vip_gift/internal/types"
@@ -35,6 +40,7 @@ func (h *PubHandler) RegisterRoutes(r fiber.Router) {
 	// /api/product/gift/pub
 	r.Get("/shop/one/:publicCode", h.GetPub)
 	r.Post("/shop/search", h.SearchPub)
+	r.Post("/charge/search", h.SearchChargePub)
 	r.Post("/shop/categories", h.GetPubCategories)
 	r.Post("/shop/list", h.ListPub)
 	jwtSecretKey := os.Getenv("JWT_SECRET_KEY")
@@ -135,7 +141,82 @@ func (h *PubHandler) ListPub(c *fiber.Ctx) error {
 	}
 	return SuccessJSON(c, respData)
 }
+func (h *PubHandler) SearchChargePub(c *fiber.Ctx) error {
+	var req SearchRequest
+	if err := c.BodyParser(&req); err != nil {
+		return ErrorJSON(c, 400, "Invalid request body")
+	}
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.Size <= 0 {
+		req.Size = 10000
+	}
+	// 封装对 https://gift.10000hk.com/api/charge/product/list 的请求
+	// 将请求数据转换为 JSON 格式
+	payload, err := json.Marshal(req)
+	if err != nil {
+		return ErrorJSON(c, 500, "Failed to marshal request")
+	}
 
+	// 构造 HTTP POST 请求
+	apiURL := "https://gift.10000hk.com/api/charge/product/list"
+	httpReq, err := http.NewRequest("POST", apiURL, bytes.NewBuffer(payload))
+	if err != nil {
+		return ErrorJSON(c, 500, "Failed to create HTTP request")
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	// 设置超时时间
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return ErrorJSON(c, 500, "Failed to perform HTTP request")
+	}
+	defer resp.Body.Close()
+
+	// 读取响应数据
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return ErrorJSON(c, 500, "Failed to read response body")
+	}
+
+	// 如果 HTTP 状态码不是 200，直接返回错误
+	if resp.StatusCode != http.StatusOK {
+		return ErrorJSON(c, resp.StatusCode, "Request to external API failed")
+	}
+
+	// 定义 API 返回数据的结构体
+	type APIResponse struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+		Data    struct {
+			DataList []struct {
+				Platform  string `json:"platform"`
+				Product   string `json:"product"`
+				Range     string `json:"range"`
+				SalePrice string `json:"salePrice"`
+				ProductId string `json:"productId"`
+			} `json:"dataList"`
+			Total int `json:"total"`
+		} `json:"data"`
+	}
+
+	// 解析 API 返回的 JSON 数据
+	var apiResp APIResponse
+	if err := json.Unmarshal(body, &apiResp); err != nil {
+		return ErrorJSON(c, 500, "Failed to parse API response")
+	}
+
+	// 如果外部 API 返回的 code 不是 200，则返回错误信息
+	if apiResp.Code != 200 {
+		return ErrorJSON(c, apiResp.Code, apiResp.Message)
+	}
+
+	// 成功则将 data 部分直接返回给前端
+	return c.JSON(apiResp.Data)
+
+}
 func (h *PubHandler) SearchPub(c *fiber.Ctx) error {
 	var req SearchRequest
 	if err := c.BodyParser(&req); err != nil {
