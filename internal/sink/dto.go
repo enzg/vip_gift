@@ -23,8 +23,8 @@ type OrderCreateResp struct {
 }
 type OrderChargeReq struct {
 	Phone             string `json:"phone"`
-	ProductId         string `json:"productId"`
 	DownstreamOrderId string `json:"downstreamOrderId"`
+	ProductId         string `json:"productId"`
 	Amount            int64  `json:"amount"`
 }
 type BizDataJSON[T any] struct {

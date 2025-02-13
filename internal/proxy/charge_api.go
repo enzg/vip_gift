@@ -45,8 +45,8 @@ func (api *chargeApiImpl) ToOrderDto(ctx context.Context, req sink.OrderCreateRe
 	}
 	bizReqJSON, _ := json.Marshal(packReq)
 	dto := types.OrderDTO{
-		PublicCode:        req.PublicCode,
 		DownstreamOrderId: downstreamOrderId,
+		PublicCode:        req.PublicCode,
 		DataJSON:          string(bizReqJSON),
 		Status:            0,
 		Remark:            "",
