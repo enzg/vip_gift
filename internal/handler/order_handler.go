@@ -198,6 +198,20 @@ func (h *OrderHandler) QueryOrders(c *fiber.Ctx) error {
 			// return ErrorJSON(c, 500, err.Error())
 			fmt.Println("VV group query error:", err)
 		}
+		if len(respVV) == 0 {
+			for _, vvId := range vvIds {
+				o, _ := h.svc.GetOrderByDownstreamOrderId(context.Background(), vvId)
+				if o != nil {
+					respVV = append(respVV, sink.OrderQueryResp{
+						DownstreamOrderId: o.GetDownstreamOrderId(),
+						OrderId:           o.GetOrderId(),
+						Status:            int64(o.GetStatus()),
+						StatusText:        o.GetStatus().String(),
+						Remark:            o.GetStatus().Remark(),
+					})
+				}
+			}
+		}
 		// 这里刷新一次本地数据库的订单状态
 		for _, o := range respVV {
 			// 从 respVV 中取出订单状态，更新到本地数据库
@@ -223,6 +237,20 @@ func (h *OrderHandler) QueryOrders(c *fiber.Ctx) error {
 		respVC, err := chargeApi.DoQueryOrder(context.Background(), vcIds)
 		if err != nil {
 			fmt.Println("VF group query error:", err)
+		}
+		if len(respVC) == 0 {
+			for _, vcId := range vcIds {
+				o, _ := h.svc.GetOrderByDownstreamOrderId(context.Background(), vcId)
+				if o != nil {
+					respVC = append(respVC, sink.OrderQueryResp{
+						DownstreamOrderId: o.GetDownstreamOrderId(),
+						OrderId:           o.GetOrderId(),
+						Status:            int64(o.GetStatus()),
+						StatusText:        o.GetStatus().String(),
+						Remark:            o.GetStatus().Remark(),
+					})
+				}
+			}
 		}
 		orderResults = append(orderResults, respVC...)
 	}

@@ -183,6 +183,5 @@ func (api *giftApiImpl) DoQueryOrder(ctx context.Context, ids []string) ([]sink.
 	if fuluResp.Code != 200 {
 		return nil, fmt.Errorf("fulu query result fail: code=%d, msg=%s", fuluResp.Code, fuluResp.Message)
 	}
-
 	return fuluResp.Data, nil
 }
