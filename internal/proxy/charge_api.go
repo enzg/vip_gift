@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 
 	"10000hk.com/vip_gift/internal/sink"
@@ -44,6 +45,78 @@ func (api *chargeApiImpl) ToOrderDto(ctx context.Context, req sink.OrderCreateRe
 		Extra: req.DataJSON,
 	}
 	bizReqJSON, _ := json.Marshal(packReq)
+
+	// 根据 publicCode 查找产品，获取 CommissionMF
+	var commissionMF float64 = 0.0
+	productLookupURL := "https://gift.10000hk.com/api/charge/product/list"
+
+	// 构造请求payload，假设查询条件为 productId（publicCode）
+	searchPayload, err := json.Marshal(map[string]interface{}{
+		"productId": req.PublicCode,
+	})
+	if err != nil {
+		// 若payload构造失败，则记录日志后继续，commissionMF默认为0
+		fmt.Printf("[ToOrderDto] marshal search payload error: %v\n", err)
+	} else {
+		httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, productLookupURL, bytes.NewBuffer(searchPayload))
+		if err == nil {
+			httpReq.Header.Set("Content-Type", "application/json")
+			resp, err := api.httpClient.Do(httpReq)
+			if err == nil {
+				defer resp.Body.Close()
+				if resp.StatusCode == http.StatusOK {
+					// 定义返回数据结构，增加 commissionValue 字段
+					type DataItem struct {
+						Platform        string `json:"platform"`
+						Product         string `json:"product"`
+						Range           string `json:"range"`
+						SalePrice       string `json:"salePrice"`
+						ProductId       string `json:"productId"`
+						CommissionValue string `json:"commissionValue"`
+					}
+					type APIResponse struct {
+						Code    int    `json:"code"`
+						Message string `json:"message"`
+						Data    struct {
+							DataList []DataItem `json:"dataList"`
+							Total    int        `json:"total"`
+						} `json:"data"`
+					}
+					var apiResp APIResponse
+					body, err := io.ReadAll(resp.Body)
+					if err != nil {
+						fmt.Printf("[ToOrderDto] read product lookup resp error: %v\n", err)
+					} else if err = json.Unmarshal(body, &apiResp); err != nil {
+						fmt.Printf("[ToOrderDto] unmarshal product lookup resp error: %v\n", err)
+					} else if apiResp.Code == 200 {
+						// 在返回结果中查找匹配的产品（以 productId 比较）
+						for _, item := range apiResp.Data.DataList {
+							if item.ProductId == req.PublicCode {
+								// 将 CommissionValue 从 string 转换为 float64
+								commissionValue, errConv := strconv.ParseFloat(item.CommissionValue, 64)
+								if errConv != nil {
+									fmt.Printf("[ToOrderDto] convert CommissionValue error: %v\n", errConv)
+								} else {
+									commissionMF = commissionValue
+								}
+								break
+							}
+						}
+					} else {
+						fmt.Printf("[ToOrderDto] product lookup response code not 200, code=%d, msg=%s\n", apiResp.Code, apiResp.Message)
+					}
+				} else {
+					fmt.Printf("[ToOrderDto] product lookup http status: %d\n", resp.StatusCode)
+				}
+			} else {
+				fmt.Printf("[ToOrderDto] product lookup request error: %v\n", err)
+			}
+		} else {
+			fmt.Printf("[ToOrderDto] create product lookup request error: %v\n", err)
+		}
+	}
+
+	// 组装订单 DTO，同时设置佣金比例
 	dto := types.OrderDTO{
 		DownstreamOrderId: downstreamOrderId,
 		PublicCode:        req.PublicCode,
@@ -53,6 +126,9 @@ func (api *chargeApiImpl) ToOrderDto(ctx context.Context, req sink.OrderCreateRe
 		CommissionRule:    "MF", // 权益业务通通默认秒返
 		UserSn:            req.PartnerId,
 		ParentSn:          req.ParentSn,
+		// 根据查找到的 CommissionMF 计算下级/上级分佣
+		CommissionSelf:   commissionMF * 0.80,
+		CommissionParent: commissionMF * 0.20,
 	}
 	return dto, nil
 }
