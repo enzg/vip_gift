@@ -252,6 +252,23 @@ func (h *OrderHandler) QueryOrders(c *fiber.Ctx) error {
 				}
 			}
 		}
+		// 这里刷新一次本地数据库的订单状态
+		for _, o := range respVC {
+			// 从 respVV 中取出订单状态，更新到本地数据库
+			order, err := h.svc.GetOrderByDownstreamOrderId(context.Background(), o.DownstreamOrderId)
+			if err != nil {
+				// 没查到就跳过
+				continue
+			}
+			statusNew := types.OrderStatus(o.Status)
+			dto := &types.OrderDTO{
+				OrderId:           order.GetOrderId(),
+				DownstreamOrderId: order.GetDownstreamOrderId(),
+				Status:            statusNew,
+				Remark:            statusNew.Remark(),
+			}
+			_ = h.svc.StoreToDB(context.Background(), dto)
+		}
 		orderResults = append(orderResults, respVC...)
 	}
 
@@ -263,6 +280,12 @@ func (h *OrderHandler) QueryOrders(c *fiber.Ctx) error {
 		if err != nil {
 			// 没查到就跳过
 			continue
+		}
+		if orderResult.StatusText == "" {
+			orderResult.StatusText = order.GetStatus().String()
+		}
+		if orderResult.Remark == "" {
+			orderResult.Remark = order.GetStatus().Remark()
 		}
 		orderResult.OrderId = order.GetOrderId()
 	}
