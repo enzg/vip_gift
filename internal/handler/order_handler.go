@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -38,6 +39,8 @@ func (h *OrderHandler) RegisterRoutes(r fiber.Router) {
 	r.Post("/orders/list", h.ListOrders)
 
 	r.Post("/orders/query", h.QueryOrders)
+
+	r.Post("/orders/update_status", h.UpdateOrderStatus)
 }
 
 // -------------------------------------------------------------------
@@ -292,4 +295,48 @@ func (h *OrderHandler) QueryOrders(c *fiber.Ctx) error {
 
 	// 4) 返回
 	return SuccessJSON(c, orderResults)
+}
+
+// UpdateOrderStatus 接口：发送 `order-update` 消息到 Kafka
+func (h *OrderHandler) UpdateOrderStatus(c *fiber.Ctx) error {
+	// 验证 userSn="CRM"
+	userSn := c.Get("userSn")
+	if userSn != "CRM" {
+		return ErrorJSON(c, http.StatusUnauthorized, "Unauthorized: userSn must be 'CRM'")
+	}
+
+	// 解析请求参数
+	var req struct {
+		OrderId           string `json:"orderId,omitempty"`
+		DownstreamOrderId string `json:"downstreamOrderId,omitempty"`
+		TradeStatus       string `json:"tradeStatus,omitempty"`
+		RefundStatus      string `json:"refundStatus,omitempty"`
+		DeliveryStatus    int64  `json:"deliveryStatus,omitempty"`
+		SettlementStatus  int64  `json:"settlementStatus,omitempty"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return ErrorJSON(c, http.StatusBadRequest, "Invalid request body")
+	}
+
+	// 如果没有 orderId，就尝试用 downstreamOrderId 查找
+	if req.OrderId == "" && req.DownstreamOrderId != "" {
+		order, err := h.svc.GetOrderByDownstreamOrderId(context.Background(), req.DownstreamOrderId)
+		if err != nil {
+			return ErrorJSON(c, http.StatusNotFound, fmt.Sprintf("Order not found for downstreamOrderId=%s", req.DownstreamOrderId))
+		}
+		req.OrderId = order.OrderId
+	}
+
+	if req.OrderId == "" {
+		return ErrorJSON(c, http.StatusBadRequest, "Either orderId or downstreamOrderId is required")
+	}
+
+	// 发送 `order-update` 消息到 Kafka
+	message, _ := json.Marshal(req)
+	if err := h.svc.PublishOrderUpdate(context.Background(), req.DownstreamOrderId, message); err != nil {
+		return ErrorJSON(c, http.StatusInternalServerError, "Failed to publish order update")
+	}
+
+	return SuccessJSON(c, req)
 }

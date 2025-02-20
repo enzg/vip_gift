@@ -9,10 +9,9 @@ import (
 
 // InitKafkaWriter 创建并返回一个 Kafka Writer
 // 你可以改用从 os.Getenv() 读取 broker/topic
-func InitKafkaWriter(broker string, topic string) *kafka.Writer {
+func InitKafkaWriter(broker string) *kafka.Writer {
 	w := kafka.NewWriter(kafka.WriterConfig{
 		Brokers:  []string{broker},
-		Topic:    topic,
 		Balancer: &kafka.LeastBytes{},
 
 		// 以下参数可按需调优
@@ -23,6 +22,6 @@ func InitKafkaWriter(broker string, topic string) *kafka.Writer {
 		RequiredAcks:     -1,
 		CompressionCodec: kafka.Snappy.Codec(),
 	})
-	log.Printf("Kafka Writer init success: broker=%s, topic=%s\n", broker, topic)
+	log.Printf("Kafka Writer init success: broker=%s, topic will assign when write\n", broker)
 	return w
 }

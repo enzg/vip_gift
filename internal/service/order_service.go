@@ -26,14 +26,15 @@ type OrderService interface {
 
 	// GetOrder 根据orderId查询订单
 	GetOrder(ctx context.Context, orderId string) (*types.OrderDTO, error)
-
+	GetOrderEntity(ctx context.Context, orderId string) (*types.OrderEntity, error)
+	UpdateOrder(ctx context.Context, ent *types.OrderEntity) error
 	GetOrderByDownstreamOrderId(ctx context.Context, downstreamOrderId string) (*types.OrderEntity, error)
 
 	// ListOrder 分页获取订单列表
 	// ListOrder(ctx context.Context, page, size int64) ([]types.OrderDTO, int64, error)
 	ListOrder(ctx context.Context, page, size int64, orderIds, downstreamIds []string) ([]types.OrderDTO, int64, error)
-
-	// ToOrderDto(ctx context.Context, ent sink.OrderCreateReq) (types.OrderDTO, error)
+	// PublishOrderUpdate 发送订单更新消息
+	PublishOrderUpdate(ctx context.Context, downstreamOrderId string, message []byte) error
 }
 
 // orderServiceImpl
@@ -87,6 +88,7 @@ func (s *orderServiceImpl) CreateOrder(ctx context.Context, dto *types.OrderDTO)
 	err := s.kafkaWriter.WriteMessages(ctx, kafka.Message{
 		Key:   []byte(orderId),
 		Value: msgBytes,
+		Topic: "vip-order-create",
 	})
 	if err != nil {
 		return nil, fmt.Errorf("kafka produce error: %v", err)
@@ -178,6 +180,34 @@ func (s *orderServiceImpl) GetOrder(ctx context.Context, orderId string) (*types
 	return dto, nil
 }
 
+// GetOrderEntity 通过 orderId 查询订单实体
+func (s *orderServiceImpl) GetOrderEntity(ctx context.Context, orderId string) (*types.OrderEntity, error) {
+	return s.repo.GetOrderByOrderId(orderId)
+}
+
+// UpdateOrder 更新订单，仅更新非空字段
+func (s *orderServiceImpl) UpdateOrder(ctx context.Context, ent *types.OrderEntity) error {
+	updateData := map[string]interface{}{}
+
+	if ent.TradeStatus != "" {
+		updateData["trade_status"] = ent.TradeStatus
+	}
+	if ent.RefundStatus != "" {
+		updateData["refund_status"] = ent.RefundStatus
+	}
+	if ent.DeliveryStatus > 0 {
+		updateData["delivery_status"] = ent.DeliveryStatus
+	}
+	if ent.SettlementStatus > 0 {
+		updateData["settlement_status"] = ent.SettlementStatus
+	}
+
+	if len(updateData) == 0 {
+		return nil // 没有需要更新的字段
+	}
+
+	return s.repo.UpdateOrder(ent)
+}
 func (s *orderServiceImpl) ListOrder(ctx context.Context, page, size int64, orderIds, downstreamIds []string) ([]types.OrderDTO, int64, error) {
 	ents, total, err := s.repo.ListOrder(page, size, orderIds, downstreamIds)
 	if err != nil {
@@ -213,4 +243,11 @@ func (s *orderServiceImpl) GetOrderByDownstreamOrderId(ctx context.Context, down
 // 如需 ES,可加 indexToES, etc
 func generateRandom() int64 {
 	return 100000 + time.Now().UnixNano()%100000
+}
+func (s *orderServiceImpl) PublishOrderUpdate(ctx context.Context, downstreamOrderId string, message []byte) error {
+	return s.kafkaWriter.WriteMessages(ctx, kafka.Message{
+		Key:   []byte(downstreamOrderId),
+		Value: message,
+		Topic: "vip-order-update",
+	})
 }
