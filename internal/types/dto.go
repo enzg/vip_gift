@@ -126,6 +126,10 @@ type OrderDTO struct {
 	ParentSn          string      `json:"parentSn,omitempty"`         // 上级编号
 	CommissionSelf    float64     `json:"commissionSelf,omitempty"`   // 自己的佣金
 	CommissionParent  float64     `json:"commissionParent,omitempty"` // 上级的佣金
+	TradeStatus       string      `json:"tradeStatus,omitempty"`
+	RefundStatus      string      `json:"refundStatus,omitempty"`
+	DeliveryStatus    int64       `json:"deliveryStatus,omitempty"`
+	SettlementStatus  int64       `json:"settlementStatus,omitempty"`
 }
 type ClientOrderDTO struct {
 	*OrderDTO

@@ -176,6 +176,10 @@ func (s *orderServiceImpl) GetOrder(ctx context.Context, orderId string) (*types
 		CommissionRule:    ent.CommissionRule,
 		CommissionSelf:    ent.CommissionSelf,
 		CommissionParent:  ent.CommissionParent,
+		TradeStatus:       ent.TradeStatus,
+		RefundStatus:      ent.RefundStatus,
+		DeliveryStatus:    ent.DeliveryStatus,
+		SettlementStatus:  ent.SettlementStatus,
 	}
 	return dto, nil
 }
@@ -225,6 +229,10 @@ func (s *orderServiceImpl) ListOrder(ctx context.Context, page, size int64, orde
 			CommissionRule:    e.CommissionRule,
 			CommissionSelf:    e.CommissionSelf,
 			CommissionParent:  e.CommissionParent,
+			TradeStatus:       e.TradeStatus,
+			RefundStatus:      e.RefundStatus,
+			DeliveryStatus:    e.DeliveryStatus,
+			SettlementStatus:  e.SettlementStatus,
 		}
 	}
 	return dtos, total, nil

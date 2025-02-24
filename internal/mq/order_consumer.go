@@ -3,11 +3,14 @@ package mq
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/segmentio/kafka-go"
 
+	"10000hk.com/vip_gift/internal/proxy"
 	"10000hk.com/vip_gift/internal/service"
 	"10000hk.com/vip_gift/internal/types"
 )
@@ -124,27 +127,60 @@ func (o *OrderConsumer) runCreateConsumer() {
 
 // 处理订单创建
 func (o *OrderConsumer) handleCreateOrder(msg OrderMessage) {
-	log.Printf("[OrderConsumer] Processing order: orderId=%s downstreamId=%s status=%d\n",
+	log.Printf("[OrderConsumer] got order: orderId=%s downstreamId=%s status=%d\n",
 		msg.OrderId, msg.DownstreamOrderId, msg.Status)
 
+	// 1) 转成 OrderDTO
 	dto := &types.OrderDTO{
 		OrderId:           msg.OrderId,
 		DownstreamOrderId: msg.DownstreamOrderId,
 		DataJSON:          msg.DataJSON,
 		Status:            msg.Status,
+		Remark:            "", // 可以根据需要设置. 创建时默认为空
 		UserSn:            msg.UserSn,
 		ParentSn:          msg.ParentSn,
-		CommissionRule:    "MF",
+		CommissionRule:    "MF", // 权益业务通通默认秒返
 		CommissionSelf:    msg.CommissionSelf,
 		CommissionParent:  msg.CommissionParent,
 	}
 
+	// 2) 写DB
 	if err := o.orderService.StoreToDB(context.Background(), dto); err != nil {
-		log.Printf("[OrderConsumer] Store to DB error: %v\n", err)
+		log.Printf("[OrderConsumer] store to DB error: %v\n", err)
+		return
+	}
+	// 3) 进一步逻辑: e.g. 通知, 回调, 更新状态...
+	fmt.Printf("[OrderConsumer] order %s has been inserted into DB.\n", msg.OrderId)
+	var orderApi types.OrderApi
+	switch {
+	case strings.Contains(msg.DownstreamOrderId, "VV"):
+		orderApi = proxy.NewGiftApi(map[string]string{
+			"CreateOrder": "https://api0.10000hk.com/api/product/gift/customer/orders/create",
+			"QueryOrder":  "https://api0.10000hk.com/api/product/gift/orders/query",
+		}, o.pub)
+	case strings.Contains(msg.DownstreamOrderId, "VF"):
+		orderApi = proxy.NewChargeApi(map[string]string{
+			"CreateOrder": "https://gift.10000hk.com/api/charge/order/recharge",
+			"QueryOrder":  "https://gift.10000hk.com/api/charge/order/query",
+		})
+	default:
+		log.Printf("[OrderConsumer] unknown downstreamOrderId: %s\n", msg.DownstreamOrderId)
 		return
 	}
 
-	o.scheduleQueryAttempts(dto)
+	orderCreateResp, err := orderApi.DoCreateOrder(context.Background(), dto)
+	if err != nil {
+		log.Printf("[OrderConsumer] DoCreateOrder error: %v\n", err)
+		dto.Status = 500
+		dto.Remark = fmt.Sprintf("DoCreateOrder error: %v", err)
+		_ = o.orderService.StoreToDB(context.Background(), dto)
+		return
+	}
+	log.Printf("[OrderConsumer] DoCreateOrder resp: %+v\n", orderCreateResp)
+
+	// If creation succeeded, we schedule queries at 3s, 7s, 11s
+	// so we do not block the consumer
+	o.scheduleQueryAttempts(dto, orderApi)
 }
 
 // ========== 2. 处理 `order-update`（更新订单状态） ==========
@@ -215,11 +251,16 @@ func (o *OrderConsumer) handleUpdateOrder(msg OrderUpdateMessage) {
 }
 
 // ========== 3. 订单查询调度 ==========
-
-func (o *OrderConsumer) scheduleQueryAttempts(dto *types.OrderDTO) {
-	delays := []time.Duration{3 * time.Second, 7 * time.Second, 13 * time.Second, 31 * time.Second}
+func (o *OrderConsumer) scheduleQueryAttempts(dto *types.OrderDTO, orderApi types.OrderApi) {
+	delays := []time.Duration{3 * time.Second, 7 * time.Second, 13 * time.Second, 31 * time.Second, 61 * time.Second, 121 * time.Second}
 	for _, d := range delays {
-		o.queryScheduler.ScheduleQuery(QueryTask{OrderDTO: dto, Delay: d, OrderSvc: o.orderService})
+		task := QueryTask{
+			OrderDTO: dto,
+			Delay:    d,
+			OrderApi: orderApi,
+			OrderSvc: o.orderService,
+		}
+		o.queryScheduler.ScheduleQuery(task)
 	}
-	log.Printf("[OrderConsumer] Scheduled queries for order=%s\n", dto.OrderId)
+	log.Printf("[OrderConsumer] scheduled queries for order=%s\n", dto.OrderId)
 }
