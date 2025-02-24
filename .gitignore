@@ -22,3 +22,5 @@ go.work
 .DS_Store
 cmd/.env
 .DS_Store
+internal/.DS_Store
+internal/handler/jwt_handler_test.go
