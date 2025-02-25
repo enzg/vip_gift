@@ -300,7 +300,7 @@ func (h *OrderHandler) QueryOrders(c *fiber.Ctx) error {
 // UpdateOrderStatus 接口：发送 `order-update` 消息到 Kafka
 func (h *OrderHandler) UpdateOrderStatus(c *fiber.Ctx) error {
 	// 验证 userSn="CRM"
-	userSn := c.Get("userSn")
+	userSn := c.Locals("userSn")
 	if userSn != "CRM" {
 		return ErrorJSON(c, http.StatusUnauthorized, "Unauthorized: userSn must be 'CRM'")
 	}
