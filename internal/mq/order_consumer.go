@@ -241,7 +241,7 @@ func (o *OrderConsumer) handleUpdateOrder(msg OrderUpdateMessage) {
 	if msg.DeliveryStatus > 0 {
 		order.DeliveryStatus = msg.DeliveryStatus
 	}
-	if msg.SettlementStatus > 0 {
+	if msg.SettlementStatus != 0 {
 		order.SettlementStatus = msg.SettlementStatus
 	}
 

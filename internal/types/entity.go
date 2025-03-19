@@ -309,8 +309,8 @@ type OrderEntity struct {
 	CommissionRule    string      `gorm:"size:255"                json:"commissionRule"`     // <-- MF YYF CYF 等
 	TradeStatus       string      `gorm:"size:50" json:"tradeStatus"`
 	RefundStatus      string      `gorm:"size:50" json:"refundStatus"`
-	DeliveryStatus    int64       `gorm:"default:1" json:"deliveryStatus"`
-	SettlementStatus  int64       `gorm:"default:1" json:"settlementStatus"`
+	DeliveryStatus    int64       `gorm:"default:0" json:"deliveryStatus"`
+	SettlementStatus  int64       `gorm:"default:0" json:"settlementStatus"`
 	CreatedAt         time.Time   `gorm:"autoCreateTime" json:"createdAt"`
 	UpdatedAt         time.Time   `gorm:"autoUpdateTime" json:"updatedAt"`
 }
