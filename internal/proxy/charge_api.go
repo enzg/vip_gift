@@ -51,7 +51,7 @@ func (api *chargeApiImpl) ToOrderDto(ctx context.Context, req sink.OrderCreateRe
 	productLookupURL := "https://gift.10000hk.com/api/charge/product/list"
 
 	// 构造请求payload，假设查询条件为 productId（publicCode）
-	searchPayload, err := json.Marshal(map[string]interface{}{
+	searchPayload, err := json.Marshal(map[string]any{
 		"productId": req.PublicCode,
 	})
 	if err != nil {
