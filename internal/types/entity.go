@@ -311,6 +311,7 @@ type OrderEntity struct {
 	RefundStatus      string      `gorm:"size:50" json:"refundStatus"`
 	DeliveryStatus    int64       `gorm:"default:0" json:"deliveryStatus"`
 	SettlementStatus  int64       `gorm:"default:0" json:"settlementStatus"`
+	Channel           string      `gorm:"size:50" json:"channel"` // 渠道
 	CreatedAt         time.Time   `gorm:"autoCreateTime" json:"createdAt"`
 	UpdatedAt         time.Time   `gorm:"autoUpdateTime" json:"updatedAt"`
 }

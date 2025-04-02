@@ -142,6 +142,7 @@ func (o *OrderConsumer) handleCreateOrder(msg OrderMessage) {
 		CommissionRule:    "MF", // 权益业务通通默认秒返
 		CommissionSelf:    msg.CommissionSelf,
 		CommissionParent:  msg.CommissionParent,
+		Channel:           types.GetChannel(msg.DownstreamOrderId),
 	}
 
 	// 2) 写DB

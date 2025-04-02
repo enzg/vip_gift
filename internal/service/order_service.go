@@ -127,6 +127,7 @@ func (s *orderServiceImpl) StoreToDB(ctx context.Context, dto *types.OrderDTO) e
 				CommissionRule:    dto.CommissionRule,
 				CommissionSelf:    dto.CommissionSelf,
 				CommissionParent:  dto.CommissionParent,
+				Channel:           dto.Channel,
 			}
 			if errC := s.repo.CreateOrder(newEnt); errC != nil {
 				return fmt.Errorf("StoreToDB: create error: %w", errC)

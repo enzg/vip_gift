@@ -157,7 +157,7 @@ func (api *chargeApiImpl) DoCreateOrder(ctx context.Context, dto *types.OrderDTO
 		return nil, fmt.Errorf("decode charge order resp fail: %w", err)
 	}
 	var status int64
-	if chargeResp.Code != 200 {
+	if chargeResp.Code == 500 {
 		status = 500
 	} else {
 		status = 100

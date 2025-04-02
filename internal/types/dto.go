@@ -2,6 +2,8 @@
 package types
 
 import (
+	"strings"
+
 	"github.com/jinzhu/copier"
 )
 
@@ -130,6 +132,7 @@ type OrderDTO struct {
 	RefundStatus      string      `json:"refundStatus,omitempty"`
 	DeliveryStatus    int64       `json:"deliveryStatus,omitempty"`
 	SettlementStatus  int64       `json:"settlementStatus,omitempty"`
+	Channel           string      `json:"channel,omitempty"` // 渠道
 }
 type ClientOrderDTO struct {
 	*OrderDTO
@@ -258,4 +261,13 @@ func copyOrderDTOToEntity(dto *OrderDTO) (*OrderEntity, error) {
 		return nil, err
 	}
 	return ent, nil
+}
+
+func GetChannel(s string) string {
+	// 如果以 R10 或 R30 结尾，返回 "66hou.cn"
+	if strings.HasSuffix(s, "R10") || strings.HasSuffix(s, "R30") {
+		return "66hou.cn"
+	}
+	// 其他情况返回 "ytjb.cc"
+	return "ytjb.cc"
 }
