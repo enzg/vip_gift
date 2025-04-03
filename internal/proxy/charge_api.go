@@ -129,7 +129,7 @@ func (api *chargeApiImpl) ToOrderDto(ctx context.Context, req sink.OrderCreateRe
 		// 根据查找到的 CommissionMF 计算下级/上级分佣
 		CommissionSelf:   commissionMF * 0.80,
 		CommissionParent: commissionMF * 0.20,
-		Channel:          types.GetChannel(req.ProductId),
+		Channel:          types.GetChannel(req.PublicCode),
 	}
 	return dto, nil
 }
