@@ -13,18 +13,18 @@ import (
 	"10000hk.com/vip_gift/pkg"
 )
 
-var TopicOrderCreate = "vip-order-create"
-var TopicOrderUpdate = "vip-order-update"
+var TopicOrderCreate = "test_vip-order-create"
+var TopicOrderUpdate = "test_vip-order-update"
 var kafkaUrl = "localhost:9092"
-var consumerId = "order_consumer_group"
+var consumerId = "test_order_consumer_group"
 
 func main() {
 	// 1) 加载环境变量
 	config.LoadEnv()
 
 	// 2) 初始化DB & ES
-	db := config.InitDB()
-	esClient := config.InitES()
+	db := config.InitTestDB()
+	esClient := config.InitTestES()
 
 	// 3) Fiber
 	app := config.SetupFiber()

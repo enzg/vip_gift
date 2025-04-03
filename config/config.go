@@ -149,3 +149,59 @@ func InitES() *elasticsearch.Client {
 	log.Println("Elasticsearch client initialized!")
 	return client
 }
+
+func InitTestES() *elasticsearch.Client {
+	//jb
+	esURL := "http://172.23.158.162:9200"
+	cfg := elasticsearch.Config{
+		Addresses: []string{esURL},
+	}
+
+	client, err := elasticsearch.NewClient(cfg)
+	if err != nil {
+		log.Printf("failed to create ES client: %v", err)
+		return nil
+	}
+
+	indexName := "test_vip_pub"
+	resp, err := client.Indices.Exists([]string{indexName})
+	if err != nil {
+		log.Printf("failed to check if index exists: %v", err)
+		return nil
+	}
+	defer resp.Body.Close()
+
+	// 如果索引不存在(返回404), 我们从外部 JSON 文件中读取 Mapping 并创建索引
+	if resp.StatusCode == 404 {
+		// 假设你的 JSON 文件叫做 "vip_pub_mapping.json" 并放在同级目录
+		mappingBytes, err := os.ReadFile("assets/vip_pub_mapping.json")
+		if err != nil {
+			log.Printf("failed to read mapping file: %v", err)
+			return client // 返回空或 client 看业务需求
+		}
+
+		// 将 JSON 内容转成字符串，然后提交到 ES
+		req := esapi.IndicesCreateRequest{
+			Index: indexName,
+			Body:  strings.NewReader(string(mappingBytes)),
+		}
+
+		createResp, err := req.Do(context.Background(), client)
+		if err != nil {
+			log.Printf("failed to create index %s: %v", indexName, err)
+			return client
+		}
+		defer createResp.Body.Close()
+
+		if createResp.IsError() {
+			log.Printf("Error creating index %s, status: %s", indexName, createResp.Status())
+		} else {
+			log.Printf("Index %s created successfully!", indexName)
+		}
+	} else {
+		log.Printf("Index %s exists or check returned status: %d", indexName, resp.StatusCode)
+	}
+
+	log.Println("Elasticsearch client initialized!")
+	return client
+}
