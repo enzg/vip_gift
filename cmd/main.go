@@ -13,8 +13,8 @@ import (
 	"10000hk.com/vip_gift/pkg"
 )
 
-var TopicOrderCreate = "test_vip-order-create"
-var TopicOrderUpdate = "test_vip-order-update"
+var TopicOrderCreate = "test-vip-order-create"
+var TopicOrderUpdate = "test-vip-order-update"
 var kafkaUrl = "localhost:9092"
 var consumerId = "test_order_consumer_group"
 
