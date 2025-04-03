@@ -88,7 +88,7 @@ func (s *orderServiceImpl) CreateOrder(ctx context.Context, dto *types.OrderDTO)
 	err := s.kafkaWriter.WriteMessages(ctx, kafka.Message{
 		Key:   []byte(orderId),
 		Value: msgBytes,
-		Topic: "vip-order-create",
+		Topic: "test-vip-order-create",
 	})
 	if err != nil {
 		return nil, fmt.Errorf("kafka produce error: %v", err)
@@ -257,6 +257,6 @@ func (s *orderServiceImpl) PublishOrderUpdate(ctx context.Context, downstreamOrd
 	return s.kafkaWriter.WriteMessages(ctx, kafka.Message{
 		Key:   []byte(downstreamOrderId),
 		Value: message,
-		Topic: "vip-order-update",
+		Topic: "test-vip-order-update",
 	})
 }
