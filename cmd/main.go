@@ -76,7 +76,7 @@ func main() {
 	defer orderConsumer.Stop()
 
 	// 10) 启动 Fiber
-	addr := ":3001"
+	addr := ":3007"
 	fmt.Printf("Server listening on %s\n", addr)
 	log.Fatal(app.Listen(addr))
 }
