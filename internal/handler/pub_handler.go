@@ -273,10 +273,10 @@ func (h *PubHandler) GetPubCategories(c *fiber.Ctx) error {
 	}
 
 	// 2) 将 cats 转换成 [{ "cate": string, "id": int64 }, ...]
-	dataList := make([]map[string]interface{}, 0, len(cats))
+	dataList := make([]map[string]any, 0, len(cats))
 	for _, cat := range cats {
 		id, _ := service.CateToSmallPositive(cat)
-		dataList = append(dataList, map[string]interface{}{
+		dataList = append(dataList, map[string]any{
 			"cate": cat,
 			"id":   id, // 这里随意给个不重复的ID，如自增
 		})

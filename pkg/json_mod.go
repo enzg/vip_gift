@@ -3,11 +3,12 @@ package pkg
 import (
 	"encoding/json"
 	"log"
+	"maps"
 )
 
 // mergeJSON - 将 oldJSON 解析后, 与 extraMap 合并, 再序列化回字符串
-func MergeJSON(oldJSON string, extraMap map[string]interface{}) string {
-	merged := make(map[string]interface{})
+func MergeJSON(oldJSON string, extraMap map[string]any) string {
+	merged := make(map[string]any)
 	// 先解析 oldJSON
 	if oldJSON != "" {
 		if err := json.Unmarshal([]byte(oldJSON), &merged); err != nil {
@@ -15,9 +16,7 @@ func MergeJSON(oldJSON string, extraMap map[string]interface{}) string {
 		}
 	}
 	// 合并 extraMap
-	for k, v := range extraMap {
-		merged[k] = v
-	}
+	maps.Copy(merged, extraMap)
 	// 再序列化
 	newBytes, err := json.Marshal(merged)
 	if err != nil {

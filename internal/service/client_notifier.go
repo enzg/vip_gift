@@ -37,7 +37,7 @@ func NewUpstreamNotifier(notifyURL string) UpstreamNotifier {
 
 // NotifyOrderStatus 发送 HTTP POST 到上游接口
 func (u *upstreamNotifier) NotifyOrderStatus(ctx context.Context, orderDTO *types.OrderDTO) error {
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"upstreamOrderSn": orderDTO.OrderId, // 也可能是 orderDTO.DownstreamOrderId, 视具体需求
 		"message":         orderDTO.Remark,
 		"status":          int64(orderDTO.Status),
@@ -90,7 +90,7 @@ func GenerateToken(userSn string) (string, error) {
 	token.Claims = claims
 	return token.SignedString([]byte(accessSecret))
 }
-func GetMd5Base64Str(a interface{}) (string, error) {
+func GetMd5Base64Str(a any) (string, error) {
 	marshal, err := json.Marshal(a)
 	if err != nil {
 		return "", fmt.Errorf("加密失败")

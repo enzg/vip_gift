@@ -219,17 +219,17 @@ func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]Gr
 
 	// 1) 构建查询
 	// 在 “term” 查询基础上，新增 "sort": [{"parValue": {"order": "asc"}}]
-	query := map[string]interface{}{
-		"query": map[string]interface{}{
-			"term": map[string]interface{}{
+	query := map[string]any{
+		"query": map[string]any{
+			"term": map[string]any{
 				"categories": keyword,
 			},
 		},
 		"from": from,
 		"size": size,
-		"sort": []interface{}{
-			map[string]interface{}{
-				"parValue": map[string]interface{}{
+		"sort": []any{
+			map[string]any{
+				"parValue": map[string]any{
 					"order": "asc",
 				},
 			},
@@ -253,15 +253,15 @@ func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]Gr
 	}
 
 	// 3) 解析返回
-	var sr map[string]interface{}
+	var sr map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&sr); err != nil {
 		return nil, 0, err
 	}
 
 	// 4) 提取 totalHits
 	var totalHits int64
-	if hitsVal, ok := sr["hits"].(map[string]interface{}); ok {
-		if totalObj, ok2 := hitsVal["total"].(map[string]interface{}); ok2 {
+	if hitsVal, ok := sr["hits"].(map[string]any); ok {
+		if totalObj, ok2 := hitsVal["total"].(map[string]any); ok2 {
 			if val, ok3 := totalObj["value"].(float64); ok3 {
 				totalHits = int64(val)
 			}
@@ -269,12 +269,12 @@ func (s *pubServiceImpl) SearchByKeyword(keyword string, page, size int64) ([]Gr
 	}
 
 	// 5) 提取文档 hits
-	hitsArr, _ := sr["hits"].(map[string]interface{})["hits"].([]interface{})
+	hitsArr, _ := sr["hits"].(map[string]any)["hits"].([]any)
 	groupMap := make(map[string][]types.PubDTO)
 
 	for _, h := range hitsArr {
-		doc := h.(map[string]interface{})
-		src := doc["_source"].(map[string]interface{})
+		doc := h.(map[string]any)
+		src := doc["_source"].(map[string]any)
 
 		dto := types.PubDTO{
 			PublicCode:       stringValue(src["id"]),
@@ -386,11 +386,11 @@ func (s *pubServiceImpl) fillFromDBAndUpdateES(dto *types.PubDTO) error {
 // -------------------------------------------------------------------
 // func (s *pubServiceImpl) GetAllCategories() ([]string, error) {
 // 	// Build a terms aggregation query
-// 	query := map[string]interface{}{
+// 	query := map[string]any{
 // 		"size": 0,
-// 		"aggs": map[string]interface{}{
-// 			"catAgg": map[string]interface{}{
-// 				"terms": map[string]interface{}{
+// 		"aggs": map[string]any{
+// 			"catAgg": map[string]any{
+// 				"terms": map[string]any{
 // 					"field": "categories",
 // 					"size":  10000, // adjust as needed
 // 				},
@@ -413,18 +413,18 @@ func (s *pubServiceImpl) fillFromDBAndUpdateES(dto *types.PubDTO) error {
 // 		return nil, fmt.Errorf("ES status: %s", resp.Status())
 // 	}
 
-// 	var sr map[string]interface{}
+// 	var sr map[string]any
 // 	if err := json.NewDecoder(resp.Body).Decode(&sr); err != nil {
 // 		return nil, err
 // 	}
 
-// 	aggs := sr["aggregations"].(map[string]interface{})
-// 	catAgg := aggs["catAgg"].(map[string]interface{})
-// 	buckets := catAgg["buckets"].([]interface{})
+// 	aggs := sr["aggregations"].(map[string]any)
+// 	catAgg := aggs["catAgg"].(map[string]any)
+// 	buckets := catAgg["buckets"].([]any)
 
 // 	var categories []string
 // 	for _, b := range buckets {
-// 		bucket := b.(map[string]interface{})
+// 		bucket := b.(map[string]any)
 // 		key := bucket["key"].(string)
 // 		categories = append(categories, key)
 // 	}
@@ -473,11 +473,11 @@ func (s *pubServiceImpl) GetAllCategories() ([]string, error) {
 
 // ========================= Elasticsearch Helper Methods =========================
 func (s *pubServiceImpl) fetchEsCategories() ([]string, error) {
-	query := map[string]interface{}{
+	query := map[string]any{
 		"size": 0,
-		"aggs": map[string]interface{}{
-			"catAgg": map[string]interface{}{
-				"terms": map[string]interface{}{
+		"aggs": map[string]any{
+			"catAgg": map[string]any{
+				"terms": map[string]any{
 					"field": "categories",
 					"size":  10000,
 				},
@@ -500,18 +500,18 @@ func (s *pubServiceImpl) fetchEsCategories() ([]string, error) {
 		return nil, fmt.Errorf("ES status: %s", resp.Status())
 	}
 
-	var sr map[string]interface{}
+	var sr map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&sr); err != nil {
 		return nil, err
 	}
 
-	aggs := sr["aggregations"].(map[string]interface{})
-	catAgg := aggs["catAgg"].(map[string]interface{})
-	buckets := catAgg["buckets"].([]interface{})
+	aggs := sr["aggregations"].(map[string]any)
+	catAgg := aggs["catAgg"].(map[string]any)
+	buckets := catAgg["buckets"].([]any)
 
 	var cats []string
 	for _, b := range buckets {
-		bucket := b.(map[string]interface{})
+		bucket := b.(map[string]any)
 		key := bucket["key"].(string)
 		cats = append(cats, key)
 	}
@@ -520,7 +520,7 @@ func (s *pubServiceImpl) fetchEsCategories() ([]string, error) {
 
 // indexToES 把 pubEntity 同步到 ES
 func (s *pubServiceImpl) indexToES(ent *types.PubEntity) error {
-	doc := map[string]interface{}{
+	doc := map[string]any{
 		"id":               ent.PublicCode, // _id
 		"name":             ent.ProductName,
 		"tag":              ent.Tag,
@@ -576,8 +576,8 @@ func (s *pubServiceImpl) deleteFromES(ent *types.PubEntity) error {
 	return nil
 }
 
-// stringValue is a helper to safely convert an interface{} to a string
-func stringValue(v interface{}) string {
+// stringValue is a helper to safely convert an any to a string
+func stringValue(v any) string {
 	if v == nil {
 		return ""
 	}
@@ -586,7 +586,7 @@ func stringValue(v interface{}) string {
 	}
 	return fmt.Sprintf("%v", v)
 }
-func boolValue(v interface{}) bool {
+func boolValue(v any) bool {
 	if b, ok := v.(bool); ok {
 		return b
 	}
@@ -647,7 +647,7 @@ func (s *pubServiceImpl) GetBaseCodesByPublicCode(publicCode string) ([]string, 
 	return baseCodes, nil
 }
 
-func floatValue(v interface{}) float64 {
+func floatValue(v any) float64 {
 	if v == nil {
 		return 0.0
 	}
@@ -660,11 +660,11 @@ func floatValue(v interface{}) float64 {
 }
 
 // stringSliceValue 尝试将 v 转换为 []string，如果出错或不是字符串数组，就返回空切片
-func stringSliceValue(v interface{}) []string {
-	// 先断言成 []interface{}
-	arr, ok := v.([]interface{})
+func stringSliceValue(v any) []string {
+	// 先断言成 []any
+	arr, ok := v.([]any)
 	if !ok {
-		// 若不是 []interface{}，说明类型不符合
+		// 若不是 []any，说明类型不符合
 		return nil
 	}
 

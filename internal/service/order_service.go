@@ -192,7 +192,7 @@ func (s *orderServiceImpl) GetOrderEntity(ctx context.Context, orderId string) (
 
 // UpdateOrder 更新订单，仅更新非空字段
 func (s *orderServiceImpl) UpdateOrder(ctx context.Context, ent *types.OrderEntity) error {
-	updateData := map[string]interface{}{}
+	updateData := map[string]any{}
 
 	if ent.TradeStatus != "" {
 		updateData["trade_status"] = ent.TradeStatus

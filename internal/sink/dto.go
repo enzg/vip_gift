@@ -46,9 +46,9 @@ type OrderQueryResp struct {
 	Remark            string `json:"remark,omitempty"`
 }
 type CommonAPIResp struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data,omitempty"`
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Data    any    `json:"data,omitempty"`
 }
 
 type CommonListAPIResp struct {

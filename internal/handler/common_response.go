@@ -25,13 +25,13 @@ type SearchRequest struct {
 
 // 定义统一的响应结构
 type BaseResponse struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data,omitempty"`
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Data    any    `json:"data,omitempty"`
 }
 
 // 通用成功响应：默认 code=200
-func SuccessJSON(c *fiber.Ctx, data interface{}) error {
+func SuccessJSON(c *fiber.Ctx, data any) error {
 	return c.JSON(BaseResponse{
 		Code:    200,
 		Message: "success",

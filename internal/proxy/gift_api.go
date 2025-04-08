@@ -101,7 +101,7 @@ func (api *giftApiImpl) DoCreateOrder(ctx context.Context, dto *types.OrderDTO) 
 
 	// 3) 发起上游 HTTP 请求
 	//    先把 bizReq.Body 改造成实际发包的数据，比如再插入 baseCode
-	bizReqMap := map[string]interface{}{}
+	bizReqMap := map[string]any{}
 	// 先把 "bizReq.Body" marshal => map
 	bodyBytes, _ := json.Marshal(bizReq.Body)
 	json.Unmarshal(bodyBytes, &bizReqMap)
