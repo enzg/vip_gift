@@ -30,6 +30,7 @@ type GncEntity struct {
 	QueryURL    string `gorm:"column:query_url;size:255"    json:"queryUrl"`
 
 	OriginData string `gorm:"column:origin_data;type:text" json:"originData"`
+	SourceCode string `gorm:"column:source_code;size:100" json:"sourceCode"` // 来源代码
 }
 
 // 实现 GiftBase 接口
