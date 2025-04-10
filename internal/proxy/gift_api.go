@@ -106,7 +106,9 @@ func (api *giftApiImpl) DoCreateOrder(ctx context.Context, dto *types.OrderDTO) 
 		// 有gncOriginData, 直接用
 		log.Printf("[DoCreateOrder] GetGncOriginDataByPublicCode success: %s\n", productId)
 		bizReq.Body.ProductId = productId
+		bizReq.Body.CustomerOrderNo = dto.DownstreamOrderId
 		bizReqMap["publicCode"] = productId
+
 		bizReqMap["source"] = "VIP_FULU"
 	}
 	log.Printf("[DoCreateOrder] bizReqMap: %+v\n", bizReqMap)
@@ -180,7 +182,7 @@ func (api *giftApiImpl) queryOrderByDownstreamOrderId(ctx context.Context, id st
 	}
 
 	// 3) 发起 HTTP 请求到 Fulu 的查询接口(假设是 POST)
-	url := api.upstreamURL["DoQuery"] // 你需要替换为实际的查询地址
+	url := api.upstreamURL["QueryOrder"] // 你需要替换为实际的查询地址
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(reqBytes))
 	if err != nil {
 		return nil, fmt.Errorf("create query httpReq fail: %w", err)
