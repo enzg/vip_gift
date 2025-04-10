@@ -155,9 +155,9 @@ func (o *OrderConsumer) handleCreateOrder(msg OrderMessage) {
 	switch {
 	case strings.Contains(msg.DownstreamOrderId, "VV"):
 		orderApi = proxy.NewGiftApi(map[string]string{
-			"CreateOrder": "https://api0.10000hk.com/api/product/gift/customer/orders/create",
-			"QueryOrder":  "https://api0.10000hk.com/api/product/gift/orders/query",
-		}, o.pub)
+			"CreateOrder": "https://gift.10000hk.com/api/fulu/order/recharge", //"https://api0.10000hk.com/api/product/gift/customer/orders/create",
+			"QueryOrder":  "https://gift.10000hk.com/api/fulu/order/query",    //"https://api0.10000hk.com/api/product/gift/orders/query",
+		}, o.pub, o.orderService)
 	case strings.Contains(msg.DownstreamOrderId, "VF"):
 		orderApi = proxy.NewChargeApi(map[string]string{
 			"CreateOrder": "https://gift.10000hk.com/api/charge/order/recharge",

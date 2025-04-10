@@ -35,12 +35,14 @@ func main() {
 
 	// 5) 注册 Pub 模块
 	pubRepo := repository.NewPubRepo(db)
-	pubSvc := service.NewPubService(pubRepo, esClient)
+	gncRepo := repository.NewGncRepo(db)
+
+	pubSvc := service.NewPubService(pubRepo, esClient, gncRepo)
 	pubHdl := handler.NewPubHandler(pubSvc)
 	pubHdl.RegisterRoutes(api)
 
 	// 6) 注册 Gnc 模块
-	gncRepo := repository.NewGncRepo(db)
+
 	gncSvc := service.NewGncService(gncRepo)
 	gncHdl := handler.NewGncHandler(gncSvc)
 	gncHdl.RegisterRoutes(api)

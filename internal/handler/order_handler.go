@@ -67,7 +67,7 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 	var api types.OrderApi
 	switch {
 	case strings.Contains(req.DownstreamOrderId, "VV"):
-		api = proxy.NewGiftApi(map[string]string{}, h.pub)
+		api = proxy.NewGiftApi(map[string]string{}, h.pub, h.svc)
 	case strings.Contains(req.DownstreamOrderId, "VF"):
 		api = proxy.NewChargeApi(map[string]string{})
 	default:
@@ -186,8 +186,8 @@ func (h *OrderHandler) QueryOrders(c *fiber.Ctx) error {
 	var orderResults []sink.OrderQueryResp
 
 	giftApi := proxy.NewGiftApi(map[string]string{
-		"QueryOrder": "https://api0.10000hk.com/api/product/gift/orders/query",
-	}, h.pub)
+		"QueryOrder": "https://gift.10000hk.com/api/fulu/order/query",
+	}, h.pub, h.svc)
 	chargeApi := proxy.NewChargeApi(map[string]string{
 		"QueryOrder": "https://gift.10000hk.com/api/charge/order/query",
 	})

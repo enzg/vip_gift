@@ -33,16 +33,18 @@ type PubService interface {
 	GetAllCategories() ([]string, error)
 	BatchAddCategoryForPrefix(string, string, string) error
 	GetBaseCodesByPublicCode(publicCode string) ([]string, error)
+	GetGncOriginDataByPublicCode(publicCode string) (string, error)
 }
 
 type pubServiceImpl struct {
-	repo repository.PubRepo
-	es   *elasticsearch.Client
+	repo    repository.PubRepo
+	es      *elasticsearch.Client
+	gncRepo repository.GncRepo
 }
 
 // NewPubService 返回默认的 pubServiceImpl 实例
-func NewPubService(repo repository.PubRepo, es *elasticsearch.Client) PubService {
-	return &pubServiceImpl{repo: repo, es: es}
+func NewPubService(repo repository.PubRepo, es *elasticsearch.Client, gncRepo repository.GncRepo) PubService {
+	return &pubServiceImpl{repo: repo, es: es, gncRepo: gncRepo}
 }
 
 // -------------------------------------------------------------------
@@ -726,4 +728,28 @@ func DumpCateReverse() map[int64]string {
 		reverseMap[id] = c
 	}
 	return reverseMap
+}
+func (s *pubServiceImpl) GetGncOriginDataByPublicCode(publicCode string) (string, error) {
+	// 1. Get the baseCodes from PubEntity compositions
+	baseCodes, err := s.GetBaseCodesByPublicCode(publicCode)
+	if err != nil {
+		return "", fmt.Errorf("failed to get baseCodes: %w", err)
+	}
+
+	if len(baseCodes) == 0 {
+		return "", errors.New("no baseCodes found for this publicCode")
+	}
+
+	// 2. We'll use the first baseCode to find the GncEntity
+	// (Alternatively, you could merge origin data from multiple GncEntities if needed)
+	baseCode := baseCodes[0]
+
+	// 3. Use GncRepo to get the GncEntity
+	gncEntity, err := s.gncRepo.GetGncByBaseCode(baseCode)
+	if err != nil {
+		return "", fmt.Errorf("failed to get GncEntity: %w", err)
+	}
+
+	// 4. Return the OriginData
+	return gncEntity.OriginData, nil
 }
