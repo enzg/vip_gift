@@ -67,8 +67,8 @@ func (api *giftApiImpl) ToOrderDto(ctx context.Context, ent sink.OrderCreateReq)
 		UserSn:            ent.PartnerId,
 		ParentSn:          ent.ParentSn,
 		PublicCode:        pubCode,
-		CommissionSelf:    pub.CommissionMF * 0.85,
-		CommissionParent:  pub.CommissionMF * 0.15,
+		CommissionSelf:    pub.CommissionMF * 0.80,
+		CommissionParent:  pub.CommissionMF * 0.20,
 	}
 	return dto, nil
 }
